@@ -1,6 +1,6 @@
 import mapCampus from '../../assets/figma/map-campus.svg'
 import { KAKAO_JS_KEY } from '../../config/env'
-import { nearbyCrosswalks } from '../../data/mockCrosswalks'
+import { nearbyCrosswalks } from '../../data/crosswalks'
 import KakaoMap, { type PositionedCrosswalk } from './KakaoMap'
 
 // 좌표가 있는 횡단보도만 지도에 찍는다
