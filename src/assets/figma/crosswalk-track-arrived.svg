@@ -1,0 +1,11 @@
+<svg width="315" height="18" viewBox="0 0 315 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="wireframe">
+<g id="Group">
+<path id="Vector" d="M1.5 16H313.5" stroke="#111111" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+<g id="Vector_2">
+<path d="M239.5 0V14V0ZM253.5 0V14V0ZM267.5 0V14V0ZM281.5 0V14V0ZM295.5 0V14V0Z" fill="black"/>
+<path d="M239.5 0V14M253.5 0V14M267.5 0V14M281.5 0V14M295.5 0V14" stroke="#111111" stroke-width="5"/>
+</g>
+</g>
+</g>
+</svg>
