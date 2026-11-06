@@ -1,0 +1,27 @@
+<svg width="282" height="280" viewBox="0 0 282 280" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="wireframe">
+<g id="apple-flash">
+<g id="Mask group">
+<mask id="mask0_0_1" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="0" y="0" width="258" height="280">
+<g id="Group">
+<path id="Vector" d="M258 0H0V279.5H258V0Z" fill="white"/>
+<path id="Vector_2" d="M223.6 167.7C240.224 167.7 253.7 154.224 253.7 137.6C253.7 120.976 240.224 107.5 223.6 107.5C206.976 107.5 193.5 120.976 193.5 137.6C193.5 154.224 206.976 167.7 223.6 167.7Z" fill="black"/>
+<path id="Vector_3" d="M215 199.95C228.062 199.95 238.65 189.362 238.65 176.3C238.65 163.238 228.062 152.65 215 152.65C201.938 152.65 191.35 163.238 191.35 176.3C191.35 189.362 201.938 199.95 215 199.95Z" fill="black"/>
+</g>
+</mask>
+<g mask="url(#mask0_0_1)">
+<g id="Group_2">
+<g id="apple-green">
+<path id="Vector_4" d="M129 90.3C103.2 64.5 34.4 73.1 34.4 141.9C34.4 206.4 86 245.1 111.8 236.5C120.4 232.2 137.6 232.2 146.2 236.5C172 245.1 223.6 206.4 223.6 141.9C223.6 73.1 154.8 64.5 129 90.3Z" fill="#5BB450" stroke="#111111" stroke-width="6.45" stroke-linejoin="round"/>
+<g id="apple-top">
+<path id="Vector_5" d="M129 90.3C131.867 70.2333 137.6 54.4667 146.2 43" stroke="#111111" stroke-width="6.45" stroke-linecap="round"/>
+<path id="Vector_6" d="M141.9 60.2C161.967 37.2667 180.6 34.4 197.8 51.6C177.733 65.9333 159.1 68.8 141.9 60.2Z" fill="white" stroke="#111111" stroke-width="5.375" stroke-linejoin="round"/>
+</g>
+</g>
+</g>
+</g>
+</g>
+<path id="Vector_7" d="M245.1 86L266.6 73.1M253.7 124.7H279.5M245.1 163.4L266.6 176.3" stroke="#111111" stroke-width="4.3" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+</g>
+</svg>

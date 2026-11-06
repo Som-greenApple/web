@@ -1,0 +1,29 @@
+<svg width="56" height="55" viewBox="0 0 56 55" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="wireframe">
+<g id="Frame 7">
+<g id="apple-flash">
+<g id="Mask group">
+<mask id="mask0_0_1" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="0" y="0" width="51" height="55">
+<g id="Group">
+<path id="Vector" d="M50.7693 0H0V55.0001H50.7693V0Z" fill="white"/>
+<path id="Vector_2" d="M44.0001 33C47.2713 33 49.9231 30.3481 49.9231 27.0769C49.9231 23.8057 47.2713 21.1538 44.0001 21.1538C40.7288 21.1538 38.077 23.8057 38.077 27.0769C38.077 30.3481 40.7288 33 44.0001 33Z" fill="black"/>
+<path id="Vector_3" d="M42.3077 39.3461C44.878 39.3461 46.9616 37.2625 46.9616 34.6923C46.9616 32.122 44.878 30.0384 42.3077 30.0384C39.7375 30.0384 37.6539 32.122 37.6539 34.6923C37.6539 37.2625 39.7375 39.3461 42.3077 39.3461Z" fill="black"/>
+</g>
+</mask>
+<g mask="url(#mask0_0_1)">
+<g id="Group_2">
+<g id="apple-green">
+<path id="Vector_4" d="M25.3846 17.7692C20.3077 12.6923 6.76924 14.3846 6.76924 27.923C6.76924 40.6154 16.9231 48.2308 22 46.5385C23.6923 45.6923 27.077 45.6923 28.7693 46.5385C33.8462 48.2308 44.0001 40.6154 44.0001 27.923C44.0001 14.3846 30.4616 12.6923 25.3846 17.7692Z" fill="#5BB450" stroke="#111111" stroke-width="0.9" stroke-linejoin="round"/>
+<g id="apple-top">
+<path id="Vector_5" d="M25.3846 17.7692C25.9487 13.8205 27.077 10.7179 28.7693 8.46148" stroke="#111111" stroke-width="0.9" stroke-linecap="round"/>
+<path id="Vector_6" d="M27.9231 11.8461C31.8718 7.33328 35.5385 6.76917 38.9231 10.1538C34.9744 12.9743 31.3077 13.5384 27.9231 11.8461Z" fill="white" stroke="#111111" stroke-width="0.75" stroke-linejoin="round"/>
+</g>
+</g>
+</g>
+</g>
+</g>
+<path id="Vector_7" d="M48.2308 16.923L52.4616 14.3846M49.9231 24.5384H55.0001M48.2308 32.1538L52.4616 34.6923" stroke="#111111" stroke-width="0.6" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+</g>
+</g>
+</svg>
