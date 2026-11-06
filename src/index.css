@@ -1,0 +1,13 @@
+@import 'tailwindcss';
+
+@theme {
+  /* 피그마 폰트(그리운 아영체)가 설치돼 있으면 우선 사용, 없으면 Gaegu로 대체 */
+  --font-hand: "Griun Ahyoung's Handwrite In 2019", 'Gaegu', sans-serif;
+  --color-ink: #111111;
+  --color-sub: #777777;
+  --color-canvas: #f5f5f5;
+}
+
+body {
+  @apply bg-canvas font-hand text-ink antialiased;
+}
