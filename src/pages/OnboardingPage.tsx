@@ -5,6 +5,7 @@ import MobileFrame from '../components/MobileFrame'
 import PrimaryButton from '../components/PrimaryButton'
 import { requestCurrentPosition } from '../features/map/geolocation'
 import type { SignalState } from '../types/signal'
+import { useAppContext } from '../context/useAppContext'
 
 const LEGEND: { signal: SignalState; title: string; description: string }[] = [
   { signal: 'GREEN', title: '초록사과', description: '지금 건너도 돼요' },
@@ -16,13 +17,25 @@ const LEGEND: { signal: SignalState; title: string; description: string }[] = [
 /** A1 첫 실행 */
 function OnboardingPage() {
   const navigate = useNavigate()
+  const { setPosition, setGpsMode } = useAppContext()
 
   // 위치를 못 받으면 메인에서 C1 위치 꺼짐 모달을 띄운다
   // TODO(GPS): 받은 위치를 전역 상태(context)에 저장해서 지도 · 거리 계산에 쓰기
+  // 받은 실제 위치를 전역 상태에 저장한다.
   const handleStart = () => {
     requestCurrentPosition()
-      .then(() => navigate('/main'))
-      .catch(() => navigate('/main?location=denied'))
+      .then(({ coords }) => {
+        setPosition({
+          lat: coords.latitude,
+          lng: coords.longitude,
+        })
+        setGpsMode('real')
+        navigate('/main')
+      })
+      .catch(() => {
+        setPosition(null)
+        navigate('/main?location=denied')
+      })
   }
 
   return (
