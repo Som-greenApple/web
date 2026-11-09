@@ -1,4 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { saveWalkResult } from '../walk/record'
+import RealWalkRecorder from '../walk/RealWalkRecorder'
+import { useEffect, useRef, useState } from 'react'
 import CrosswalkHeader from '../../components/CrosswalkHeader'
 import CrosswalkLoading from '../../components/CrosswalkLoading'
 import DemoControlPanel from '../../components/DemoControlPanel'
@@ -17,6 +20,14 @@ import { useDemoSession } from './useDemoSession'
 function DemoRun({ crosswalk, onRestart }: { crosswalk: Crosswalk; onRestart: () => void }) {
   const { dataMode, gpsMode, forcedSignal, setSelectedCrosswalkId } = useAppContext()
   const session = useDemoSession(crosswalk)
+  const navigate = useNavigate()
+  const navigated = useRef(false)
+  useEffect(() => {
+    if (!session.completedResult || navigated.current) return
+    navigated.current = true
+    saveWalkResult(session.completedResult)
+    navigate('/result', { state: { walkResult: session.completedResult } })
+  }, [session.completedResult, navigate])
   const { signal, distance, strategy, walkSpeed } = session
   const content = guideScenarios[strategy]
   useEffect(() => { setSelectedCrosswalkId(crosswalk.id) }, [crosswalk.id, setSelectedCrosswalkId])
@@ -39,17 +50,18 @@ function DemoRun({ crosswalk, onRestart }: { crosswalk: Crosswalk; onRestart: ()
           {session.error && <p role="alert" className="mx-2 mt-3 text-center text-sm text-sub">{session.error}</p>}
           {signal.dataStatus === 'delayed' && <p role="status" className="mt-2 text-center text-sm">{signal.ageSec}초 전 정보 · 예측을 중지했어요</p>}
           <div className="mt-6">
-            {distance !== null ? <WalkProgress distanceM={Math.ceil(distance)} signal={signal.signal} arrived={distance <= 1} /> : <p className="py-8 text-center text-sub">현재 위치 또는 횡단보도 좌표를 확인해 주세요</p>}
+            {distance !== null ? <WalkProgress distanceM={Math.ceil(distance)} signal={signal.signal} arrived={session.phase === 'crossing' || distance <= 1} /> : <p className="py-8 text-center text-sub">현재 위치 또는 횡단보도 좌표를 확인해 주세요</p>}
           </div>
           <div className="mt-6"><StatBox stats={[
             { label: '남은 거리', value: distance === null ? '미확인' : `${Math.ceil(distance)}m` },
             { label: gpsMode === 'virtual' ? '가상 속도' : '내 속도', value: walkSpeed === null ? '측정 중' : `${walkSpeed.toFixed(1)}m/s` },
             { label: '도착까지', value: distance === null || walkSpeed === null || walkSpeed <= 0 ? '미확인' : `${Math.ceil(distance / walkSpeed)}초` },
           ]} /></div>
-          <div className="mt-5"><StrategyCard title={content.title} description={description} icon={<StrategyIcon strategy={strategy} />} inverted={strategy === 'CROSS_NOW'} /></div>
+          <div className="mt-5"><StrategyCard title={session.phase === 'crossing' ? '횡단 중이에요' : content.title} description={session.phase === 'crossing' ? '가상 횡단을 마치면 걷기 기록을 보여드릴게요' : description} icon={<StrategyIcon strategy={strategy} />} inverted={strategy === 'CROSS_NOW'} /></div>
           <div className="mt-auto pt-4"><SafetyNote ageSec={signal.ageSec} /></div>
         </>}
       </div>
+      {gpsMode === 'real' && <RealWalkRecorder crosswalk={crosswalk} />}
       <DemoControlPanel signal={signal.signal} onForceSignal={session.force} onRestart={onRestart} />
     </MobileFrame>
   )

@@ -4,6 +4,7 @@ import { createRequire } from 'node:module'
 import test from 'node:test'
 import ts from 'typescript'
 import * as engine from '../src/features/demo/engine.ts'
+import * as walkRecord from '../src/features/walk/record.ts'
 
 const require = createRequire(import.meta.url)
 const source = readFileSync(new URL('../src/features/demo/useDemoSession.ts', import.meta.url), 'utf8')
@@ -42,6 +43,7 @@ function setup() {
     if (id.endsWith('useAppContext')) return { useAppContext: () => app }
     if (id.endsWith('context/location')) return { MAIN_GATE_POSITION: target, useLocation: () => location }
     if (id === './engine') return engine
+    if (id === '../walk/record') return walkRecord
     return require(id)
   }, module, module.exports)
   function render() { cursor = 0; output = module.exports.useDemoSession(crosswalk); while (effects.length) effects.shift()(); return output }
@@ -100,5 +102,39 @@ test('강제 신호는 새 카운트다운으로 시작하고 해제하면 원�
     fixture.render()
     assert.deepEqual(fixture.session.signal.signal, 'RED')
     assert.equal(fixture.session.signal.remainSec, 8)
+  } finally { fixture.cleanup() }
+})
+
+
+test('횡단보도 도착만으로 성공하지 않고 가상 횡단까지 마쳐야 실제 세션 기록을 반환한다', () => {
+  const fixture = setup()
+  try {
+    fixture.advance(60)
+    assert.equal(fixture.session.completedResult, null)
+    fixture.advance(80)
+    const result = fixture.session.completedResult
+    assert.ok(result)
+    assert.equal(fixture.session.phase, 'complete')
+    assert.equal(result.source, 'demo')
+    assert.ok(Math.abs(result.distanceM - 80) < 0.5)
+    assert.ok(result.elapsedSec > 100)
+    assert.ok(result.avgSpeed < 1, '대기 시간을 포함한 평균 속도여야 한다')
+    assert.equal(result.runCount, 0)
+    fixture.advance(10)
+    assert.equal(fixture.session.completedResult, result, '완료 기록은 한 번만 생성한다')
+  } finally { fixture.cleanup() }
+})
+
+test('속도를 바꾼 세션의 결과는 마지막 슬라이더 값이 아닌 총 거리/전체 시간으로 계산한다', () => {
+  const fixture = setup()
+  try {
+    fixture.advance(10)
+    fixture.app.speed = 1.4
+    fixture.render()
+    fixture.advance(80)
+    const result = fixture.session.completedResult
+    assert.ok(result)
+    assert.ok(result.avgSpeed > 1 && result.avgSpeed < 1.4)
+    assert.ok(Math.abs(result.avgSpeed - result.distanceM / ((result.completedAt - result.startedAt) / 1000)) < 0.0001)
   } finally { fixture.cleanup() }
 })
