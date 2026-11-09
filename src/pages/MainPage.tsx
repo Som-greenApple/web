@@ -1,15 +1,16 @@
-
-import { useEffect, useMemo } from 'react'
+import { lazy, Suspense, useEffect, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import AppleIcon from '../components/AppleIcon'
 import LocationDeniedModal from '../components/LocationDeniedModal'
 import MobileFrame from '../components/MobileFrame'
 import { nearbyCrosswalks } from '../data/crosswalks'
 import type { NearbyCrosswalk } from '../types/crosswalk'
-import CrosswalkMap from '../features/map/CrosswalkMap'
+
 import { useLocation } from '../context/location'
 import { sortCrosswalksByDistance } from '../lib/distance'
 import { useAppContext } from '../context/useAppContext'
+
+const CrosswalkMap = lazy(() => import('../features/map/CrosswalkMap'))
 
 function signalSummary(crosswalk: NearbyCrosswalk) {
   if (!crosswalk.verified) {
@@ -106,9 +107,9 @@ function MainPage() {
         </header>
 
         <div className="mt-3">
-          <CrosswalkMap
-            onSelectCrosswalk={handleSelectCrosswalk}
-          />
+          <Suspense fallback={<div role="status" className="flex h-[370px] w-[319px] items-center justify-center rounded-[20px] border-[3px] border-ink">지도를 불러오고 있어요</div>}>
+            <CrosswalkMap onSelectCrosswalk={handleSelectCrosswalk} />
+          </Suspense>
         </div>
 
         <p
@@ -177,4 +178,3 @@ function MainPage() {
 }
 
 export default MainPage
-

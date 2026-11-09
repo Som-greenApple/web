@@ -5,9 +5,7 @@ import AppleIcon from '../components/AppleIcon'
 import MobileFrame from '../components/MobileFrame'
 import PrimaryButton from '../components/PrimaryButton'
 import { useLocation } from '../context/location'
-import { requestCurrentPosition } from '../features/map/geolocation'
 import type { SignalState } from '../types/signal'
-import { useAppContext } from '../context/useAppContext'
 
 const LEGEND: {
   signal: SignalState
@@ -41,24 +39,9 @@ function OnboardingPage() {
   const navigate = useNavigate()
 
   const { startTracking } = useLocation()
-  const { setPosition, setGpsMode } = useAppContext()
-
   const handleStart = () => {
-    requestCurrentPosition()
-      .then(({ coords }) => {
-        setPosition({
-          lat: coords.latitude,
-          lng: coords.longitude,
-        })
-
-        setGpsMode('real')
-        startTracking()
-        navigate('/main')
-      })
-      .catch(() => {
-        setPosition(null)
-        navigate('/main?location=denied')
-      })
+    startTracking()
+    navigate('/main')
   }
 
   return (
