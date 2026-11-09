@@ -4,9 +4,11 @@ import { useAppContext } from './useAppContext'
 import type { LatLngPosition } from '../types/crosswalk'
 
 export default function LocationProvider({ children }: { children: ReactNode }) {
-  const { setPosition: setAppPosition, setGpsMode } = useAppContext()
+  const { setPosition: setAppPosition, setGpsMode, gpsMode } = useAppContext()
   const [position, setPosition] = useState<LatLngPosition>(MAIN_GATE_POSITION)
   const [status, setStatus] = useState<LocationStatus>('idle')
+  const gpsModeRef = useRef(gpsMode)
+  useEffect(() => { gpsModeRef.current = gpsMode }, [gpsMode])
   const watchRef = useRef<number | null>(null)
   const generation = useRef(0)
   const stopTracking = useCallback(() => {
@@ -21,6 +23,8 @@ export default function LocationProvider({ children }: { children: ReactNode }) 
       setStatus('unsupported')
       return
     }
+    setGpsMode('real')
+    gpsModeRef.current = 'real'
     setStatus('locating')
     const currentGeneration = generation.current
     watchRef.current = navigator.geolocation.watchPosition(
@@ -28,14 +32,13 @@ export default function LocationProvider({ children }: { children: ReactNode }) 
         if (generation.current !== currentGeneration) return
         const nextPosition = { lat: coords.latitude, lng: coords.longitude }
         setPosition(nextPosition)
-        setAppPosition(nextPosition)
-        setGpsMode('real')
+        if (gpsModeRef.current === 'real') setAppPosition(nextPosition)
         setStatus('tracking')
       },
       (error) => {
         if (generation.current !== currentGeneration) return
         stopTracking()
-        setAppPosition(null)
+        if (gpsModeRef.current === 'real') setAppPosition(null)
         setPosition(MAIN_GATE_POSITION)
         setStatus(error.code === 1 ? 'denied' : error.code === 3 ? 'timeout' : 'unavailable')
       },
