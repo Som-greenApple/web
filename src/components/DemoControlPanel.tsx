@@ -67,7 +67,7 @@ function DemoControlPanel({ signal, onForceSignal, onRestart }: DemoControlPanel
         <div className="absolute inset-0 z-20 flex flex-col justify-end bg-white/60">
           <section
             aria-label="데모 패널"
-            className="relative h-[440px] rounded-t-[28px] border-2 border-b-0 border-ink bg-white px-[30px] pt-6 sm:border-x-0"
+            className="relative min-h-[460px] rounded-t-[28px] border-2 border-b-0 border-ink bg-white px-[30px] pt-6 sm:border-x-0"
           >
             <button
               type="button"
@@ -85,7 +85,7 @@ function DemoControlPanel({ signal, onForceSignal, onRestart }: DemoControlPanel
               <Segmented
                 label="신호 데이터"
                 value={dataMode}
-                onChange={setDataMode}
+                onChange={(mode) => { setForcedSignal(null); setDataMode(mode) }}
                 options={[
                   { value: 'mock', label: 'mock' },
                   { value: 'replay', label: 'replay' },
@@ -117,6 +117,7 @@ function DemoControlPanel({ signal, onForceSignal, onRestart }: DemoControlPanel
                     setForcedSignal(item)
                     onForceSignal(item)
                   }}
+                  aria-label={`${item} 신호로 강제 전환`}
                   aria-pressed={item === signal}
                   className="relative flex h-[52px] w-[52px] items-center justify-center"
                 >
@@ -128,7 +129,8 @@ function DemoControlPanel({ signal, onForceSignal, onRestart }: DemoControlPanel
               ))}
             </div>
 
-            <div className="mt-3.5 flex items-end justify-between">
+            <button type="button" onClick={() => setForcedSignal(null)} className="mt-1 text-xs text-sub underline">강제 신호 해제</button>
+            <div className="mt-2 flex items-end justify-between">
               <label htmlFor="demo-speed" className="text-base leading-[22px] text-sub">
                 가상 속도
               </label>
@@ -141,6 +143,7 @@ function DemoControlPanel({ signal, onForceSignal, onRestart }: DemoControlPanel
               max={1.4}
               step={0.1}
               value={speed}
+              disabled={gpsMode !== 'virtual'}
               onChange={(e) => setSpeed(Number(e.target.value))}
               className="mt-0.5 h-5 w-full cursor-pointer appearance-none bg-transparent [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-ink [&::-moz-range-thumb]:bg-white [&::-moz-range-track]:h-0.5 [&::-moz-range-track]:bg-ink [&::-webkit-slider-runnable-track]:h-0.5 [&::-webkit-slider-runnable-track]:bg-ink [&::-webkit-slider-thumb]:-mt-[9px] [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-ink [&::-webkit-slider-thumb]:bg-white"
             />
