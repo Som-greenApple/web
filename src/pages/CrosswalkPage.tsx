@@ -12,6 +12,7 @@ import StrategyCard from '../components/StrategyCard'
 import StrategyIcon from '../components/StrategyIcon'
 import WalkProgress from '../components/WalkProgress'
 import { nearbyCrosswalks } from '../data/crosswalks'
+import { useAppContext } from '../context/useAppContext'
 import {
   defaultStrategyByCrosswalk,
   guideScenarios,
@@ -105,10 +106,22 @@ function CrosswalkPage() {
   const stateParam = searchParams.get('state')
   const statusParam = searchParams.get('status')
   const isDemo = searchParams.get('demo') === '1'
+  const { setSelectedCrosswalkId, forcedSignal } = useAppContext()
 
   const crosswalk = nearbyCrosswalks.find((item) => item.id === id)
+  const selectedId = crosswalk?.id ?? null
+
+  useEffect(() => {
+    setSelectedCrosswalkId(selectedId)
+  }, [selectedId, setSelectedCrosswalkId])
+
   const name = crosswalk?.name ?? '이름 없는'
-  const initialStrategy = isStrategyType(stateParam) ? stateParam : (defaultStrategyByCrosswalk[id] ?? 'NO_SIGNAL')
+  const initialStrategy =
+    isDemo && forcedSignal !== null
+      ? strategyBySignal[forcedSignal]
+      : isStrategyType(stateParam)
+        ? stateParam
+        : (defaultStrategyByCrosswalk[id] ?? 'NO_SIGNAL')
 
   const [strategy, setStrategy] = useState<StrategyType>(initialStrategy)
   const [loadStatus, setLoadStatus] = useState<LoadStatus>(isPreviewStatus(statusParam) ? statusParam : 'loading')
@@ -136,8 +149,12 @@ function CrosswalkPage() {
   }
 
   const handleRestart = () => {
+    const restartStrategy = isStrategyType(stateParam)
+      ? stateParam
+      : (defaultStrategyByCrosswalk[id] ?? 'NO_SIGNAL')
+
     setLoadStatus('ok')
-    setStrategy(initialStrategy)
+    setStrategy(restartStrategy)
     setRunId((prev) => prev + 1)
   }
     // 존재하지 않는 횡단보도는 안내 화면으로 처리한다.
@@ -190,7 +207,7 @@ function CrosswalkPage() {
       </MobileFrame>
     )
   }
-  
+
   return (
     <MobileFrame>
       {loadStatus === 'loading' ? (
