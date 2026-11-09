@@ -1,8 +1,15 @@
-@import 'tailwindcss';
+@import "tailwindcss";
+
+@font-face {
+  font-family: "Ayoung";
+  src: url("/fonts/Griun_AhyoungsHandwriteIn2019-Rg.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
 
 @theme {
-  /* 피그마 폰트(그리운 아영체)가 설치돼 있으면 우선 사용, 없으면 Gaegu로 대체 */
-  --font-hand: "Griun Ahyoung's Handwrite In 2019", 'Gaegu', sans-serif;
+  --font-hand: "Ayoung", "Gaegu", sans-serif;
   --color-ink: #111111;
   --color-sub: #777777;
   --color-canvas: #f5f5f5;
@@ -10,4 +17,43 @@
 
 body {
   @apply bg-canvas font-hand text-ink antialiased;
+}
+
+.sketch-map .maplibregl-ctrl-group {
+  border: 2px solid var(--color-ink);
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.sketch-map .maplibregl-ctrl-attrib {
+  font-family: sans-serif;
+  font-size: 9px;
+}
+
+.sketch-user-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border: 2px dashed var(--color-ink);
+  border-radius: 50%;
+  background: rgb(255 255 255 / 90%);
+  pointer-events: none;
+}
+
+.sketch-user-marker img {
+  width: 20px;
+  height: 48px;
+}
+
+.sketch-user-marker span {
+  position: absolute;
+  right: -10px;
+  top: -6px;
+  font-size: 16px;
+}
+
+.sketch-map .maplibregl-map {
+  font-family: var(--font-hand);
 }

@@ -11,7 +11,8 @@ import StatBox from '../components/StatBox'
 import StrategyCard from '../components/StrategyCard'
 import StrategyIcon from '../components/StrategyIcon'
 import WalkProgress from '../components/WalkProgress'
-import { nearbyCrosswalks } from '../data/mockCrosswalks'
+import { nearbyCrosswalks } from '../data/crosswalks'
+import { useAppContext } from '../context/useAppContext'
 import {
   defaultStrategyByCrosswalk,
   guideScenarios,
@@ -105,10 +106,22 @@ function CrosswalkPage() {
   const stateParam = searchParams.get('state')
   const statusParam = searchParams.get('status')
   const isDemo = searchParams.get('demo') === '1'
+  const { setSelectedCrosswalkId, forcedSignal } = useAppContext()
 
   const crosswalk = nearbyCrosswalks.find((item) => item.id === id)
+  const selectedId = crosswalk?.id ?? null
+
+  useEffect(() => {
+    setSelectedCrosswalkId(selectedId)
+  }, [selectedId, setSelectedCrosswalkId])
+
   const name = crosswalk?.name ?? '이름 없는'
-  const initialStrategy = isStrategyType(stateParam) ? stateParam : (defaultStrategyByCrosswalk[id] ?? 'NO_SIGNAL')
+  const initialStrategy =
+    isDemo && forcedSignal !== null
+      ? strategyBySignal[forcedSignal]
+      : isStrategyType(stateParam)
+        ? stateParam
+        : (defaultStrategyByCrosswalk[id] ?? 'NO_SIGNAL')
 
   const [strategy, setStrategy] = useState<StrategyType>(initialStrategy)
   const [loadStatus, setLoadStatus] = useState<LoadStatus>(isPreviewStatus(statusParam) ? statusParam : 'loading')
@@ -136,9 +149,63 @@ function CrosswalkPage() {
   }
 
   const handleRestart = () => {
+    const restartStrategy = isStrategyType(stateParam)
+      ? stateParam
+      : (defaultStrategyByCrosswalk[id] ?? 'NO_SIGNAL')
+
     setLoadStatus('ok')
-    setStrategy(initialStrategy)
+    setStrategy(restartStrategy)
     setRunId((prev) => prev + 1)
+  }
+    // 존재하지 않는 횡단보도는 안내 화면으로 처리한다.
+  if (!crosswalk) {
+    return (
+      <MobileFrame>
+        <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6">
+          <p className="text-xl">횡단보도를 찾을 수 없어요</p>
+          <button
+            type="button"
+            onClick={() => navigate('/main')}
+            className="rounded-lg border-2 border-ink px-4 py-2"
+          >
+            목록으로 돌아가기
+          </button>
+        </div>
+      </MobileFrame>
+    )
+  }
+
+  // 현장 확인 전에는 목업을 포함한 횡단 예측 안내를 표시하지 않는다.
+  if (!crosswalk.verified) {
+    return (
+      <MobileFrame>
+        <div className="flex flex-1 flex-col px-[13px] pb-4 pt-[49px]">
+          <CrosswalkHeader name={crosswalk.name} />
+
+          <div className="mt-[21px]">
+            <SignalApple signal="UNKNOWN" showMessage={false} />
+          </div>
+
+          <h1 className="mt-8 text-center text-xl">
+            현장 확인 전인 횡단보도예요
+          </h1>
+
+          <p className="mt-3 text-center text-sm leading-6 text-sub">
+            실시간 신호와 횡단 예측을 제공하지 않아요.
+            <br />
+            현장의 신호등을 직접 확인해 주세요.
+          </p>
+
+          <button
+            type="button"
+            onClick={() => navigate('/main')}
+            className="mx-auto mt-6 rounded-lg border-2 border-ink px-4 py-2"
+          >
+            목록으로 돌아가기
+          </button>
+        </div>
+      </MobileFrame>
+    )
   }
 
   return (
