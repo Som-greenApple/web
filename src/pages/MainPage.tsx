@@ -5,6 +5,7 @@ import MobileFrame from '../components/MobileFrame'
 import { nearbyCrosswalks, type NearbyCrosswalk } from '../data/mockCrosswalks'
 import CrosswalkMap from '../features/map/CrosswalkMap'
 import { requestCurrentPosition } from '../features/map/geolocation'
+import { useAppContext } from '../context/useAppContext'
 
 function signalSummary({ signal, remainSec }: NearbyCrosswalk) {
   switch (signal) {
@@ -27,12 +28,26 @@ function MainPage() {
 
   const closeLocationModal = () => setSearchParams({}, { replace: true })
 
+  const { setPosition, setGpsMode, setSelectedCrosswalkId } = useAppContext()
+
   // 웹에서는 설정 화면을 직접 열 수 없어서 권한 요청을 다시 띄운다
   // TODO(GPS): 브라우저에서 아예 차단된 경우 권한 허용 방법 안내 추가
   const handleRetryLocation = () => {
     requestCurrentPosition()
-      .then(closeLocationModal)
+      .then(({ coords }) => {
+        setPosition({
+          lat: coords.latitude,
+          lng: coords.longitude,
+        })
+        setGpsMode('real')
+        closeLocationModal()
+      })
       .catch(() => {})
+  }
+
+  const handleSelectCrosswalk = (id: string) => {
+    setSelectedCrosswalkId(id)
+    navigate(`/crosswalk/${id}`)
   }
 
   return (
@@ -44,7 +59,7 @@ function MainPage() {
         </header>
 
         <div className="mt-3">
-          <CrosswalkMap onSelectCrosswalk={(id) => navigate(`/crosswalk/${id}`)} />
+          <CrosswalkMap onSelectCrosswalk={handleSelectCrosswalk} />
         </div>
 
         <h2 className="ml-0.5 mt-[17px] text-[21px] leading-[29px]">가까운 횡단보도</h2>
@@ -53,7 +68,7 @@ function MainPage() {
             <li key={crosswalk.id} className="border-ink [&+&]:border-t-2">
               <button
                 type="button"
-                onClick={() => navigate(`/crosswalk/${crosswalk.id}`)}
+                onClick={() => handleSelectCrosswalk(crosswalk.id)}
                 className="flex w-full items-center py-[7px] text-left"
               >
                 <AppleIcon signal={crosswalk.signal} className="ml-[7px]" />
