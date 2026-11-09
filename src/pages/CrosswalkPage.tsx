@@ -5,6 +5,7 @@ import CrosswalkLoading from '../components/CrosswalkLoading'
 import DataStatusBanner from '../components/DataStatusBanner'
 import DemoControlPanel from '../components/DemoControlPanel'
 import MobileFrame from '../components/MobileFrame'
+import LiveCrosswalkGuide from '../components/LiveCrosswalkGuide'
 import SafetyNote from '../components/SafetyNote'
 import SignalApple from '../components/SignalApple'
 import StatBox from '../components/StatBox'
@@ -106,7 +107,7 @@ function CrosswalkPage() {
   const stateParam = searchParams.get('state')
   const statusParam = searchParams.get('status')
   const isDemo = searchParams.get('demo') === '1'
-  const { setSelectedCrosswalkId, forcedSignal } = useAppContext()
+  const { setSelectedCrosswalkId, forcedSignal, dataMode } = useAppContext()
 
   const crosswalk = nearbyCrosswalks.find((item) => item.id === id)
   const selectedId = crosswalk?.id ?? null
@@ -129,10 +130,10 @@ function CrosswalkPage() {
 
   // 목업 로딩: 잠깐 C2를 보여준 뒤 안내 화면으로 (?status=loading이면 계속 로딩)
   useEffect(() => {
-    if (loadStatus !== 'loading' || statusParam === 'loading') return
+    if (dataMode !== 'mock' || loadStatus !== 'loading' || statusParam === 'loading') return
     const timer = setTimeout(() => setLoadStatus('ok'), MOCK_LOADING_MS)
     return () => clearTimeout(timer)
-  }, [loadStatus, statusParam])
+  }, [loadStatus, statusParam, dataMode])
 
   const scenario = loadStatus === 'delayed' || loadStatus === 'offline' ? statusScenarios[loadStatus] : guideScenarios[strategy]
 
@@ -203,6 +204,23 @@ function CrosswalkPage() {
           >
             목록으로 돌아가기
           </button>
+        </div>
+      </MobileFrame>
+    )
+  }
+
+  if (dataMode === 'live') {
+    return <MobileFrame><LiveCrosswalkGuide key={crosswalk.id} crosswalk={crosswalk} /></MobileFrame>
+  }
+
+  if (dataMode === 'replay') {
+    return (
+      <MobileFrame>
+        <div className="flex flex-1 flex-col gap-5 px-[13px] pt-[49px]">
+          <CrosswalkHeader name={crosswalk.name} />
+          <SignalApple signal="UNKNOWN" showMessage={false} />
+          <p role="status" className="text-center">기록 재생은 준비 중이에요.</p>
+          <button type="button" onClick={() => navigate('/main')}>목록으로 돌아가기</button>
         </div>
       </MobileFrame>
     )

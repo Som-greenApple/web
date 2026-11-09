@@ -13,6 +13,10 @@ export interface Crosswalk {
   /** 횡단 길이, 단위: 미터 */
   lengthM: number | null
   controllerId: string | null
+  /** T Data 교차로 ID. 장비 ID와 구분한다. */
+  signalIntersectionId: string | null
+  /** 보행 신호 방향: nt / et / st / wt / ne / se / sw / nw */
+  signalDirection: string | null
   /** 현장에서 정보를 확인한 경우에만 true */
   verified: boolean
 }

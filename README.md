@@ -99,3 +99,20 @@ MapLibre와 OpenFreeMap의 전 세계 벡터 타일로 현재 위치 주변의 �
 지도 제공: [OpenFreeMap](https://openfreemap.org/quick_start/), © OpenMapTiles, © OpenStreetMap contributors.
 기존 카카오 지도 컴포넌트는 유지하지만 메인 화면에서는 사용하지 않습니다.
 테스트: `node --test tests/*.test.mjs` (Node.js 22.18 이상).
+
+
+## 신호 API 연동 (#7)
+
+- `/api/signal?itstId=교차로ID&direction=방향`은 서버의 `TDATA_API_KEY`로 T Data를 호출합니다.
+- 키 이름에 `VITE_`를 붙이지 않으며, `.env.local`이나 키 값을 커밋하지 않습니다.
+- 로컬은 키가 설정된 동일한 터미널에서 `npx vercel dev`를 실행합니다. Windows에서 심볼릭 링크 권한 오류가 나면 관리자 PowerShell을 사용합니다.
+- Vercel 배포 시 프로젝트 환경변수에 `TDATA_API_KEY`를 추가하고 사용할 Preview/Production 환경을 선택한 뒤 새로 배포합니다. 로컬 PowerShell 환경변수는 배포 서버로 전달되지 않습니다.
+- 메인 화면의 데이터 모드에서 실시간을 선택하면, `verified: true`이며 `signalIntersectionId`와 `signalDirection`이 유효한 항목만 조회합니다.
+- 조회 완료 후 10초 간격으로 갱신하며 같은 교차로·방향은 한 번만 요청합니다. 실제 이용 전 발급받은 API 호출 한도에 맞춰 간격을 조정해야 합니다.
+- 화면 이동과 모드 전환 시 요청을 취소합니다. 실패 시 이전 신호를 재사용하지 않습니다.
+- 정보 경과 10~30초는 지연, 30초 초과는 사용 불가입니다. 잔여시간 만료 시 다음 신호를 추측하지 않고 UNKNOWN으로 전환합니다.
+- mock의 안내 시나리오는 live 화면에 적용하지 않습니다. replay는 준비 중 안내를 표시합니다.
+- `/signal-test`는 교차로 20386의 ne 보행 신호를 수동 조회하는 개발용 화면이며, 실제 등록 횡단보도의 검증을 대체하지 않습니다.
+- 현재 등록된 3곳은 위치·신호 매핑 미확인 상태입니다. 값을 임의로 채우거나 verified를 true로 변경하지 않습니다.
+- 점멸 상태의 서울 API 매핑과 실제 횡단보도 신호 대응 관계는 아직 확인이 필요합니다. 서울 전체 횡단보도 검색은 이 작업에 포함되지 않습니다.
+- 검사: `npm run build`, `npm run lint`, `node --test tests/*.test.mjs`
