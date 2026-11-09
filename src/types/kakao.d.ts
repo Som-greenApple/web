@@ -16,6 +16,7 @@ declare namespace kakao.maps {
   class Map {
     constructor(container: HTMLElement, options: MapOptions)
     setBounds(bounds: LatLngBounds, paddingTop?: number, paddingRight?: number, paddingBottom?: number, paddingLeft?: number): void
+    setCenter(position: LatLng): void
     relayout(): void
   }
 
@@ -30,6 +31,7 @@ declare namespace kakao.maps {
 
   class CustomOverlay {
     constructor(options: CustomOverlayOptions)
+    setPosition(position: LatLng): void
     setMap(map: Map | null): void
   }
 

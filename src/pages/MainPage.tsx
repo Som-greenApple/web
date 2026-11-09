@@ -1,3 +1,4 @@
+import { useEffect, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import AppleIcon from '../components/AppleIcon'
 import LocationDeniedModal from '../components/LocationDeniedModal'
@@ -5,7 +6,8 @@ import MobileFrame from '../components/MobileFrame'
 import { nearbyCrosswalks } from '../data/crosswalks'
 import type { NearbyCrosswalk } from '../types/crosswalk'
 import CrosswalkMap from '../features/map/CrosswalkMap'
-import { requestCurrentPosition } from '../features/map/geolocation'
+import { useLocation } from '../context/location'
+import { sortCrosswalksByDistance } from '../lib/distance'
 
 function signalSummary(crosswalk: NearbyCrosswalk) {
  if (!crosswalk.verified) {
@@ -33,16 +35,22 @@ function signalSummary(crosswalk: NearbyCrosswalk) {
 function MainPage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const locationDenied = searchParams.get('location') === 'denied'
-
-  const closeLocationModal = () => setSearchParams({}, { replace: true })
-
-  // 웹에서는 설정 화면을 직접 열 수 없어서 권한 요청을 다시 띄운다
-  // TODO(GPS): 브라우저에서 아예 차단된 경우 권한 허용 방법 안내 추가
+  const { position, status, startTracking, selectDefaultLocation } = useLocation()
+  const locationDenied = searchParams.get('location') === 'denied' || ['denied', 'unavailable', 'timeout', 'unsupported'].includes(status)
+  const sortedCrosswalks = useMemo(() => sortCrosswalksByDistance(nearbyCrosswalks, position), [position])
+  useEffect(() => {
+    if (status === 'idle' && searchParams.get('location') !== 'denied') startTracking()
+  }, [status, searchParams, startTracking])
+  const closeLocationModal = () => {
+    setSearchParams((params) => { params.delete('location'); return params }, { replace: true })
+  }
   const handleRetryLocation = () => {
-    requestCurrentPosition()
-      .then(closeLocationModal)
-      .catch(() => {})
+    closeLocationModal()
+    startTracking()
+  }
+  const handleUseDefault = () => {
+    selectDefaultLocation()
+    closeLocationModal()
   }
 
   return (
@@ -57,9 +65,10 @@ function MainPage() {
           <CrosswalkMap onSelectCrosswalk={(id) => navigate(`/crosswalk/${id}`)} />
         </div>
 
+        <p className="mt-2 text-xs text-sub" role="status">{status === 'tracking' ? '내 위치 기준 · 직선거리' : '동덕여대 정문 주변 기준 · 직선거리'}</p>
         <h2 className="ml-0.5 mt-[17px] text-[21px] leading-[29px]">가까운 횡단보도</h2>
         <ul className="mt-2">
-          {nearbyCrosswalks.map((crosswalk) => (
+          {sortedCrosswalks.map((crosswalk) => (
             <li key={crosswalk.id} className="border-ink [&+&]:border-t-2">
               <button
                 type="button"
@@ -85,8 +94,7 @@ function MainPage() {
         </ul>
       </div>
 
-      {/* TODO(좌표): 정문 기준 보기 선택 시 동덕여대 정문 좌표를 내 위치 대신 사용 */}
-      {locationDenied && <LocationDeniedModal onRetry={handleRetryLocation} onUseDefault={closeLocationModal} />}
+      {locationDenied && <LocationDeniedModal onRetry={handleRetryLocation} onUseDefault={handleUseDefault} />}
     </MobileFrame>
   )
 }

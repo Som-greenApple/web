@@ -3,7 +3,7 @@ import stickmanCheer from '../assets/figma/stickman-cheer.svg'
 import AppleIcon from '../components/AppleIcon'
 import MobileFrame from '../components/MobileFrame'
 import PrimaryButton from '../components/PrimaryButton'
-import { requestCurrentPosition } from '../features/map/geolocation'
+import { useLocation } from '../context/location'
 import type { SignalState } from '../types/signal'
 
 const LEGEND: { signal: SignalState; title: string; description: string }[] = [
@@ -17,12 +17,10 @@ const LEGEND: { signal: SignalState; title: string; description: string }[] = [
 function OnboardingPage() {
   const navigate = useNavigate()
 
-  // 위치를 못 받으면 메인에서 C1 위치 꺼짐 모달을 띄운다
-  // TODO(GPS): 받은 위치를 전역 상태(context)에 저장해서 지도 · 거리 계산에 쓰기
+  const { startTracking } = useLocation()
   const handleStart = () => {
-    requestCurrentPosition()
-      .then(() => navigate('/main'))
-      .catch(() => navigate('/main?location=denied'))
+    startTracking()
+    navigate('/main')
   }
 
   return (
