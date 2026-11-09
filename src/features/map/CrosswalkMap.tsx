@@ -1,4 +1,4 @@
-import mapCampus from '../../assets/figma/map-campus.svg'
+import { useLocation } from '../../context/location'
 import { KAKAO_JS_KEY } from '../../config/env'
 import { nearbyCrosswalks } from '../../data/crosswalks'
 import KakaoMap, { type PositionedCrosswalk } from './KakaoMap'
@@ -14,12 +14,11 @@ interface CrosswalkMapProps {
 
 /** 메인 화면 지도. 카카오 키와 좌표가 준비되면 실제 지도, 아니면 피그마 일러스트 */
 function CrosswalkMap({ onSelectCrosswalk }: CrosswalkMapProps) {
-  // TODO(카카오 키 · 좌표): 둘 다 준비되면 아래 일러스트 대체 분기는 지워도 된다
-  if (!KAKAO_JS_KEY || mappableCrosswalks.length === 0) {
-    return <img src={mapCampus} alt="주변 횡단보도 지도" className="-ml-[2.5px] h-[370px] w-[319px] max-w-none" />
+  const { position, status } = useLocation()
+  if (!KAKAO_JS_KEY) {
+    return <div className="flex h-[366px] w-[316px] items-center justify-center rounded-[14px] border-2 border-ink p-6 text-center text-sub">지도 설정이 없어 지도를 표시할 수 없어요</div>
   }
-
-  return <KakaoMap appKey={KAKAO_JS_KEY} crosswalks={mappableCrosswalks} onSelectCrosswalk={onSelectCrosswalk} />
+  return <KakaoMap appKey={KAKAO_JS_KEY} crosswalks={mappableCrosswalks} position={position} isUserLocation={status === 'tracking'} onSelectCrosswalk={onSelectCrosswalk} />
 }
 
 export default CrosswalkMap
