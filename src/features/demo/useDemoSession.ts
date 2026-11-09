@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useAppContext } from '../../context/useAppContext'
 import { MAIN_GATE_POSITION, useLocation } from '../../context/location'
 import type { Crosswalk } from '../../types/crosswalk'
+import { beginCrossing, clearWalkResult, createWalkRecord, finishWalk, sampleWalk, type WalkRecord, type WalkResult } from '../walk/record'
 import type { SignalSample } from './engine'
 import { advancePosition, distanceM, liveSignalAt, predictGuide, REPLAY_PHASES, readLiveSignal, signalAt, startingPosition } from './engine'
 
@@ -12,6 +13,11 @@ export function useDemoSession(crosswalk: Crosswalk) {
   const [startedAt] = useState(() => Date.now())
   const [now, setNow] = useState(startedAt)
   const [forceStartedAt, setForceStartedAt] = useState(startedAt)
+  const record = useRef<WalkRecord | null>(null)
+  const phaseRef = useRef<'approach' | 'crossing' | 'complete'>('approach')
+  const [phase, setPhase] = useState<'approach' | 'crossing' | 'complete'>('approach')
+  const [completedResult, setCompletedResult] = useState<WalkResult | null>(null)
+  const guidance = useRef<{ mayCross: boolean; length: number | null }>({ mayCross: false, length: null })
   const virtualPosition = useRef(startingPosition(target))
   const speedRef = useRef(speed)
   useEffect(() => { speedRef.current = speed }, [speed])
@@ -29,16 +35,38 @@ export function useDemoSession(crosswalk: Crosswalk) {
       startTracking()
       return
     }
+    clearWalkResult()
+    record.current = createWalkRecord(crosswalk.id, 'demo', virtualPosition.current, Date.now())
     setPosition(virtualPosition.current)
     let previous = Date.now()
     const timer = setInterval(() => {
       const next = Date.now()
-      virtualPosition.current = advancePosition(virtualPosition.current, target, speedRef.current, (next - previous) / 1000)
+      if (phaseRef.current === 'complete' || !record.current) return
+      const crossingLength = guidance.current.length
+      if (phaseRef.current === 'approach' && distanceM(virtualPosition.current, target) <= 0.2 && guidance.current.mayCross && crossingLength !== null) {
+        phaseRef.current = 'crossing'
+        setPhase('crossing')
+        record.current = beginCrossing(record.current)
+      }
+      const goal = phaseRef.current === 'crossing' && crossingLength !== null
+        ? { lat: target.lat + crossingLength / 111_195, lng: target.lng }
+        : target
+      virtualPosition.current = advancePosition(virtualPosition.current, goal, speedRef.current, (next - previous) / 1000)
+      record.current = sampleWalk(record.current, virtualPosition.current, next)
       previous = next
       setPosition(virtualPosition.current)
+      if (phaseRef.current === 'crossing' && distanceM(virtualPosition.current, goal) <= 0.05) {
+        const result = finishWalk(record.current, crossingLength, next)
+        if (result) {
+          phaseRef.current = 'complete'
+          setPhase('complete')
+          setCompletedResult(result)
+          clearInterval(timer)
+        }
+      }
     }, 250)
     return () => clearInterval(timer)
-  }, [gpsMode, startTracking, setPosition, target])
+  }, [gpsMode, startTracking, setPosition, target, crosswalk.id])
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -97,11 +125,14 @@ export function useDemoSession(crosswalk: Crosswalk) {
   const simulated = signalAt((now - (forcedSignal === null ? startedAt : forceStartedAt)) / 1000, dataMode === 'replay' ? REPLAY_PHASES : undefined, forcedSignal)
   const signal = dataMode === 'live' && forcedSignal === null ? live : { ...simulated, ageSec: 0, dataStatus: 'ok' as const }
   const actualPosition = gpsMode === 'virtual' ? position : gpsStatus === 'tracking' ? gpsPosition : null
-  const distance = actualPosition && (gpsMode === 'virtual' || crosswalk.position) ? distanceM(actualPosition, target) : null
   const length = dataMode === 'live' && !crosswalk.verified ? null : crosswalk.lengthM ?? (dataMode === 'live' ? null : 20)
+  const goal = phase === 'crossing' && length !== null ? { lat: target.lat + length / 111_195, lng: target.lng } : target
+  const distance = actualPosition && (gpsMode === 'virtual' || crosswalk.position) ? distanceM(actualPosition, goal) : null
   const walkSpeed = gpsMode === 'virtual' ? speed : measuredSpeed
-  const strategy = predictGuide(signal.signal, signal.remainSec, distance, Math.min(walkSpeed ?? 0, 1.4), length, signal.dataStatus)
+  const strategy = phase === 'crossing' ? 'CROSS_NOW' : predictGuide(signal.signal, signal.remainSec, distance, Math.min(walkSpeed ?? 0, 1.4), length, signal.dataStatus)
+  useEffect(() => { guidance.current = { mayCross: strategy === 'CROSS_NOW' && phase === 'approach', length } }, [strategy, phase, length])
   return {
+    phase, completedResult,
     signal, distance, length, strategy, walkSpeed, loading: loading && forcedSignal === null, error: forcedSignal === null ? error : '',
     elapsedSec: Math.floor((now - startedAt) / 1000),
     force: () => { const time = Date.now(); setForceStartedAt(time); setNow(time) },

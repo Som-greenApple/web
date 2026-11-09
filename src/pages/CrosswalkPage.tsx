@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import RealWalkRecorder from '../features/walk/RealWalkRecorder'
 import CrosswalkHeader from '../components/CrosswalkHeader'
 import CrosswalkLoading from '../components/CrosswalkLoading'
 import DataStatusBanner from '../components/DataStatusBanner'
@@ -130,11 +131,10 @@ function LegacyCrosswalkPage() {
 
   const scenario = loadStatus === 'delayed' || loadStatus === 'offline' ? statusScenarios[loadStatus] : guideScenarios[strategy]
 
-  // 목업 흐름: SLOW_DOWN → (빨간불 끝) → CROSS_NOW → (건너기 끝) → 결과 화면
+  // 화면 미리보기의 타이머는 걷기 완료로 간주하지 않는다.
   const handleCountdownEnd = () => {
     if (scenario.dataStatus !== 'ok') return
     if (scenario.next) setStrategy(scenario.next)
-    else if (strategy === 'CROSS_NOW') navigate('/result')
   }
 
   // 존재하지 않는 횡단보도는 안내 화면으로 처리한다.
@@ -200,6 +200,7 @@ function LegacyCrosswalkPage() {
           onCountdownEnd={handleCountdownEnd}
         />
       )}
+      <RealWalkRecorder crosswalk={crosswalk} />
     </MobileFrame>
   )
 }
