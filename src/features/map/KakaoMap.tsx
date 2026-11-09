@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import AppleIcon from '../../components/AppleIcon'
+import CrosswalkMarker from './CrosswalkMarker'
 import type { LatLngPosition, NearbyCrosswalk } from '../../types/crosswalk'
 import { loadKakaoMap } from './loadKakaoMap'
 
@@ -8,7 +8,7 @@ export type PositionedCrosswalk = NearbyCrosswalk & { position: LatLngPosition }
 
 interface KakaoMapProps {
   appKey: string
-  /** 한 개 이상, 렌더마다 새로 만들지 않은 배열을 넘길 것 (바뀌면 지도를 다시 그린다) */
+  /** 안정적인 배열 참조를 넘길 것. 빈 배열이면 캠퍼스 주변 지도를 표시한다. */
   crosswalks: PositionedCrosswalk[]
   onSelectCrosswalk: (id: string) => void
 }
@@ -23,6 +23,7 @@ function KakaoMap({ appKey, crosswalks, onSelectCrosswalk }: KakaoMapProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [overlayTargets, setOverlayTargets] = useState<OverlayTarget[]>([])
   const [failed, setFailed] = useState(false)
+  const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
     let cancelled = false
@@ -34,7 +35,10 @@ function KakaoMap({ appKey, crosswalks, onSelectCrosswalk }: KakaoMapProps) {
 
         const toLatLng = ({ lat, lng }: LatLngPosition) => new sdk.maps.LatLng(lat, lng)
         // TODO(GPS): 내 위치가 생기면 지도 중심을 내 위치로 바꾸고 "나" 졸라맨 오버레이 추가
-        const map = new sdk.maps.Map(containerRef.current, { center: toLatLng(crosswalks[0].position), level: 3 })
+        const map = new sdk.maps.Map(containerRef.current, {
+          center: toLatLng(crosswalks[0]?.position ?? { lat: 37.6063, lng: 127.0418 }),
+          level: 3,
+        })
         const bounds = new sdk.maps.LatLngBounds()
 
         // 사과는 React로 그리기 위해 빈 div를 오버레이에 넣고 portal로 채운다
@@ -58,29 +62,24 @@ function KakaoMap({ appKey, crosswalks, onSelectCrosswalk }: KakaoMapProps) {
       overlays.forEach((overlay) => overlay.setMap(null))
       setOverlayTargets([])
     }
-  }, [appKey, crosswalks])
+  }, [appKey, crosswalks, attempt])
 
   if (failed) {
     return (
-      <div className="flex h-[366px] w-[316px] items-center justify-center rounded-[14px] border-2 border-ink text-lg text-sub">
-        지도를 불러오지 못했어요
+      <div role="alert" className="flex h-[366px] w-[316px] flex-col items-center justify-center gap-3 rounded-[14px] border-2 border-ink p-5 text-center text-sub">
+        <p>지도를 불러오지 못했어요</p>
+        <p className="text-sm">잠시 후 다시 시도해 주세요</p>
+        <button type="button" className="rounded-full border-2 border-ink px-4 py-2" onClick={() => { setFailed(false); setAttempt((value) => value + 1) }}>다시 시도</button>
       </div>
     )
   }
 
   return (
     <>
-      <div ref={containerRef} className="h-[366px] w-[316px] overflow-hidden rounded-[14px] border-2 border-ink" />
+      <div ref={containerRef} aria-label="주변 횡단보도 지도" className="h-[366px] w-[316px] overflow-hidden rounded-[14px] border-2 border-ink" />
       {overlayTargets.map(({ crosswalk, element }) =>
         createPortal(
-          <button
-            type="button"
-            onClick={() => onSelectCrosswalk(crosswalk.id)}
-            aria-label={`${crosswalk.name} 횡단보도 보기`}
-            className="block p-1 transition-transform active:scale-90"
-          >
-            <AppleIcon signal={crosswalk.verified ? crosswalk.signal : 'UNKNOWN'} />
-          </button>,
+          <CrosswalkMarker crosswalk={crosswalk} onSelect={onSelectCrosswalk} />,
           element,
           crosswalk.id,
         ),
