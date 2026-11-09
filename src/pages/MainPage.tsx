@@ -2,12 +2,22 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import AppleIcon from '../components/AppleIcon'
 import LocationDeniedModal from '../components/LocationDeniedModal'
 import MobileFrame from '../components/MobileFrame'
-import { nearbyCrosswalks, type NearbyCrosswalk } from '../data/mockCrosswalks'
+import { nearbyCrosswalks } from '../data/crosswalks'
+import type { NearbyCrosswalk } from '../types/crosswalk'
 import CrosswalkMap from '../features/map/CrosswalkMap'
 import { requestCurrentPosition } from '../features/map/geolocation'
 import { useAppContext } from '../context/useAppContext'
 
-function signalSummary({ signal, remainSec }: NearbyCrosswalk) {
+function signalSummary(crosswalk: NearbyCrosswalk) {
+ if (!crosswalk.verified) {
+   return '현장 확인 전 · 실시간 예측을 제공하지 않아요'
+  }
+
+   const { signal, remainSec } = crosswalk
+
+  if (signal !== 'UNKNOWN' && remainSec === undefined) {
+    return '실시간 신호 정보가 없어요'
+  }
   switch (signal) {
     case 'GREEN':
       return `초록사과 ${remainSec}초 남음`
@@ -71,12 +81,19 @@ function MainPage() {
                 onClick={() => handleSelectCrosswalk(crosswalk.id)}
                 className="flex w-full items-center py-[7px] text-left"
               >
-                <AppleIcon signal={crosswalk.signal} className="ml-[7px]" />
+                <AppleIcon
+                  signal={crosswalk.verified ? crosswalk.signal : 'UNKNOWN'}
+                  className="ml-[7px]"
+                />
                 <span className="ml-[18.6px] flex-1">
                   <span className="block text-xl leading-[27px]">{crosswalk.name}</span>
                   <span className="block text-[11px] leading-[15px] text-sub">{signalSummary(crosswalk)}</span>
                 </span>
-                <span className="text-xl leading-[27px]">{crosswalk.distanceM}m</span>
+                <span className="text-xl leading-[27px]">
+                  {crosswalk.distanceM === null
+                    ? '거리 미확인'
+                    : `${crosswalk.distanceM}m`}
+                </span>
               </button>
             </li>
           ))}
