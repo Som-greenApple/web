@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import AppleIcon from '../../components/AppleIcon'
-import type { LatLngPosition, NearbyCrosswalk } from '../../data/mockCrosswalks'
+import type { LatLngPosition, NearbyCrosswalk } from '../../types/crosswalk'
 import { loadKakaoMap } from './loadKakaoMap'
 
 export type PositionedCrosswalk = NearbyCrosswalk & { position: LatLngPosition }
@@ -79,7 +79,7 @@ function KakaoMap({ appKey, crosswalks, onSelectCrosswalk }: KakaoMapProps) {
             aria-label={`${crosswalk.name} 횡단보도 보기`}
             className="block p-1 transition-transform active:scale-90"
           >
-            <AppleIcon signal={crosswalk.signal} />
+            <AppleIcon signal={crosswalk.verified ? crosswalk.signal : 'UNKNOWN'} />
           </button>,
           element,
           crosswalk.id,
