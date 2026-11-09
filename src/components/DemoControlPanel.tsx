@@ -1,10 +1,7 @@
-import { useState } from 'react'
+import { useAppContext } from '../context/useAppContext'
 import ringDashed from '../assets/figma/ring-dashed.svg'
 import type { SignalState } from '../types/signal'
 import AppleIcon from './AppleIcon'
-
-type DataMode = 'mock' | 'replay' | 'live'
-type GpsMode = 'real' | 'virtual'
 
 const FORCE_SIGNALS: SignalState[] = ['GREEN', 'FLASHING', 'RED', 'UNKNOWN']
 
@@ -43,11 +40,17 @@ interface DemoControlPanelProps {
 
 /** C5 데모 패널 (?demo=1 일 때만). 시연용으로 신호·위치를 바꿔 본다 */
 function DemoControlPanel({ signal, onForceSignal, onRestart }: DemoControlPanelProps) {
-  const [open, setOpen] = useState(true)
-  // TODO: 신호 API · GPS · 보행 속도 연동되면 아래 설정을 실제 데이터 소스에 연결
-  const [dataMode, setDataMode] = useState<DataMode>('mock')
-  const [gpsMode, setGpsMode] = useState<GpsMode>('virtual')
-  const [speed, setSpeed] = useState(0.9)
+    const {
+    demoPanelOpen: open,
+    setDemoPanelOpen: setOpen,
+    dataMode,
+    setDataMode,
+    gpsMode,
+    setGpsMode,
+    speed,
+    setSpeed,
+    setForcedSignal,
+  } = useAppContext()
 
   return (
     <>
@@ -110,7 +113,10 @@ function DemoControlPanel({ signal, onForceSignal, onRestart }: DemoControlPanel
                 <button
                   key={item}
                   type="button"
-                  onClick={() => onForceSignal(item)}
+                  onClick={() => {
+                    setForcedSignal(item)
+                    onForceSignal(item)
+                  }}
                   aria-pressed={item === signal}
                   className="relative flex h-[52px] w-[52px] items-center justify-center"
                 >
@@ -141,7 +147,10 @@ function DemoControlPanel({ signal, onForceSignal, onRestart }: DemoControlPanel
 
             <button
               type="button"
-              onClick={onRestart}
+              onClick={() => {
+                setForcedSignal(null)
+                onRestart()
+              }}
               className="mt-3 h-12 w-full rounded-full border-2 border-ink text-[19px] active:scale-[0.98]"
             >
               처음부터 다시 걷기

@@ -4,7 +4,7 @@ import { Map, Marker, NavigationControl, AttributionControl, setWorkerUrl } from
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import walker from '../../assets/figma/walker.svg'
-import { DEFAULT_POSITION, useUserLocation } from '../../context/userLocation'
+import { MAIN_GATE_POSITION as DEFAULT_POSITION, useLocation } from '../../context/location'
 import { nearbyCrosswalks } from '../../data/crosswalks'
 import type { NearbyCrosswalk } from '../../types/crosswalk'
 import CrosswalkMarker from './CrosswalkMarker'
@@ -19,7 +19,7 @@ interface MarkerTarget { crosswalk: NearbyCrosswalk; element: HTMLDivElement }
 
 /** 지역 제한 없이 실제 도로만 흑백 블록 스타일로 그린다. */
 function CrosswalkMap({ onSelectCrosswalk }: CrosswalkMapProps) {
-  const { position, status, startTracking } = useUserLocation()
+  const { position, status, startTracking } = useLocation()
   const container = useRef<HTMLDivElement>(null)
   const mapRef = useRef<Map | null>(null)
   const userMarker = useRef<Marker | null>(null)
@@ -104,7 +104,7 @@ function CrosswalkMap({ onSelectCrosswalk }: CrosswalkMapProps) {
   useEffect(() => {
     const map = mapRef.current
     if (!map) return
-    if (!position || status !== 'ready') {
+    if (!position || status !== 'tracking') {
       userMarker.current?.remove()
       userMarker.current = null
       if (status === 'default') map.jumpTo({ center: [DEFAULT_POSITION.lng, DEFAULT_POSITION.lat], zoom: 16.5 })
@@ -126,7 +126,7 @@ function CrosswalkMap({ onSelectCrosswalk }: CrosswalkMapProps) {
 
   const locate = () => {
     follow.current = true
-    if (position && status === 'ready') mapRef.current?.easeTo({ center: [position.lng, position.lat], zoom: 16.5, duration: 600 })
+    if (position && status === 'tracking') mapRef.current?.easeTo({ center: [position.lng, position.lat], zoom: 16.5, duration: 600 })
     else startTracking()
   }
   const locating = status === 'idle' || status === 'locating'
