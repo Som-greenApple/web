@@ -15,6 +15,8 @@ export interface Crosswalk {
   controllerId: string | null
   /** 현장에서 정보를 확인한 경우에만 true */
   verified: boolean
+  /** 지도 줄무늬 회전각. OSM 경로 방향으로 계산한다. */
+  mapRotation?: number
 }
 
 /** 목록과 지도에서 사용하는 화면 데이터 */

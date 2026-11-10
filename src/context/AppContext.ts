@@ -3,13 +3,16 @@ import {
   type Dispatch,
   type SetStateAction,
 } from 'react'
-import type { LatLngPosition } from '../types/crosswalk'
+import type { LatLngPosition, NearbyCrosswalk } from '../types/crosswalk'
 import type { SignalState } from '../types/signal'
 
 export type DataMode = 'mock' | 'replay' | 'live'
 export type GpsMode = 'real' | 'virtual'
 
 export interface AppContextValue {
+  discoveredCrosswalks: NearbyCrosswalk[]
+  setDiscoveredCrosswalks: Dispatch<SetStateAction<NearbyCrosswalk[]>>
+
   position: LatLngPosition | null
   setPosition: Dispatch<SetStateAction<LatLngPosition | null>>
 
