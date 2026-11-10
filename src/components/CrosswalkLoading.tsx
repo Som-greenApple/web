@@ -36,7 +36,7 @@ function CrosswalkLoading({ name }: { name: string }) {
         <SkeletonBar className="w-[150px]" />
       </div>
 
-      <p className="mt-auto pt-[17px] text-center text-[15px] leading-[21px] text-sub">5초 넘게 걸리면 데모 모드를 쓸 수 있어요</p>
+      <p className="mt-auto pt-[17px] text-center text-[15px] leading-[21px] text-sub">신호 정보를 확인하고 있어요 · 실제 신호등을 우선 확인하세요</p>
     </div>
   )
 }

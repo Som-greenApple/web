@@ -5,6 +5,7 @@ import LocationDeniedModal from '../components/LocationDeniedModal'
 import MobileFrame from '../components/MobileFrame'
 import { nearbyCrosswalks } from '../data/crosswalks'
 import type { NearbyCrosswalk } from '../types/crosswalk'
+import { useCrosswalkSignals } from '../features/signal/useCrosswalkSignals'
 
 import { useLocation } from '../context/location'
 import { sortCrosswalksByDistance } from '../lib/distance'
@@ -49,11 +50,15 @@ function MainPage() {
 
   const {
     setSelectedCrosswalkId,
+    dataMode,
+    setDataMode,
   } = useAppContext()
 
   const locationDenied =
     searchParams.get('location') === 'denied' ||
     ['denied', 'unavailable', 'timeout', 'unsupported'].includes(status)
+
+  const liveSignals = useCrosswalkSignals(nearbyCrosswalks, dataMode === 'live')
 
   const sortedCrosswalks = useMemo(
     () => sortCrosswalksByDistance(nearbyCrosswalks, position),
@@ -125,6 +130,17 @@ function MainPage() {
           가까운 횡단보도
         </h2>
 
+        <label className="mt-2 flex items-center justify-between text-sm">
+          신호 데이터
+          <select aria-label="신호 데이터 모드" value={dataMode} onChange={(event) => {
+            const mode = event.target.value
+            if (mode === 'mock' || mode === 'replay' || mode === 'live') setDataMode(mode)
+          }} className="rounded border border-ink bg-white px-2 py-1">
+            <option value="mock">데모</option>
+            <option value="live">실시간</option>
+            <option value="replay">기록 재생 · 준비 중</option>
+          </select>
+        </label>
         <ul className="mt-2">
           {sortedCrosswalks.map((crosswalk) => (
             <li
@@ -140,9 +156,9 @@ function MainPage() {
               >
                 <AppleIcon
                   signal={
-                    crosswalk.verified
-                      ? crosswalk.signal
-                      : 'UNKNOWN'
+                    dataMode === 'live'
+                      ? liveSignals.getState(crosswalk).signal
+                      : dataMode === 'mock' && crosswalk.verified ? crosswalk.signal : 'UNKNOWN'
                   }
                   className="ml-[7px]"
                 />
@@ -152,7 +168,14 @@ function MainPage() {
                     {crosswalk.name}
                   </span>
                   <span className="block text-[11px] leading-[15px] text-sub">
-                    {signalSummary(crosswalk)}
+                    {!crosswalk.verified ? signalSummary(crosswalk)
+                      : dataMode === 'replay' ? '기록 재생은 준비 중이에요'
+                      : dataMode !== 'live' ? signalSummary(crosswalk)
+                      : !liveSignals.getState(crosswalk).supported ? '신호 정보 미연결'
+                      : liveSignals.getState(crosswalk).loading ? '신호 정보를 불러오고 있어요'
+                      : liveSignals.getState(crosswalk).dataStatus === 'offline' ? '최신 신호 정보를 확인할 수 없어요'
+                      : liveSignals.getState(crosswalk).signal === 'UNKNOWN' ? '현재 신호 정보 없음'
+                      : `${liveSignals.getState(crosswalk).dataStatus === 'delayed' ? '정보 지연 · ' : ''}${signalSummary({ ...crosswalk, signal: liveSignals.getState(crosswalk).signal, remainSec: liveSignals.getState(crosswalk).remainSec })}`}
                   </span>
                 </span>
 
