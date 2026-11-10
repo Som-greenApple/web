@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import RealWalkRecorder from '../features/walk/RealWalkRecorder'
 import CrosswalkHeader from '../components/CrosswalkHeader'
 import CrosswalkLoading from '../components/CrosswalkLoading'
 import DataStatusBanner from '../components/DataStatusBanner'
-import DemoControlPanel from '../components/DemoControlPanel'
 import MobileFrame from '../components/MobileFrame'
 import LiveCrosswalkGuide from '../components/LiveCrosswalkGuide'
 import SafetyNote from '../components/SafetyNote'
@@ -12,20 +12,21 @@ import StatBox from '../components/StatBox'
 import StrategyCard from '../components/StrategyCard'
 import StrategyIcon from '../components/StrategyIcon'
 import WalkProgress from '../components/WalkProgress'
+import { loadCrosswalkById } from '../features/map/nearbyCrosswalks'
+import PredictedGuide from '../features/strategy/PredictedGuide'
+import { useMockSignal } from '../features/signal/useMockSignal'
+import type { NearbyCrosswalk } from '../types/crosswalk'
 import { nearbyCrosswalks } from '../data/crosswalks'
 import { useAppContext } from '../context/useAppContext'
 import {
   defaultStrategyByCrosswalk,
   guideScenarios,
   statusScenarios,
-  strategyBySignal,
   type GuideScenario,
 } from '../data/mockGuides'
-import type { DataStatus, SignalState } from '../types/signal'
+import type { DataStatus } from '../types/signal'
+import DemoCrosswalkPage from '../features/demo/DemoCrosswalkPage'
 import { STRATEGY_TYPES, type StrategyType } from '../types/strategy'
-
-// TODO: 신호 API 연동되면 실제 요청 시간으로 대체
-const MOCK_LOADING_MS = 800
 
 type LoadStatus = 'loading' | DataStatus
 
@@ -45,7 +46,7 @@ interface CrosswalkGuideProps {
   onCountdownEnd: () => void
 }
 
-/** 한 가지 안내 상태 화면. 상태가 바뀌면 key로 새로 그려서 카운트다운을 초기화한다 */
+/** 피그마 미리보기용 안내 화면. 상태가 바뀌면 key로 새로 그려서 카운트다운을 초기화한다 */
 function CrosswalkGuide({ name, scenario, onCountdownEnd }: CrosswalkGuideProps) {
   const [remainSec, setRemainSec] = useState(scenario.remainSec)
   const { dataStatus } = scenario
@@ -96,69 +97,65 @@ function CrosswalkGuide({ name, scenario, onCountdownEnd }: CrosswalkGuideProps)
   )
 }
 
-/**
- * A3 · B1~B5 · C2~C5 걷기 안내.
- * 목업 미리보기: ?state=GO_FASTER (안내 상태), ?status=loading|delayed|offline (데이터 상태), ?demo=1 (데모 패널)
- */
-function CrosswalkPage() {
-  const navigate = useNavigate()
-  const { id = '' } = useParams()
+/** 피그마 화면 미리보기: ?state=GO_FASTER (안내 상태), ?status=loading|delayed|offline (데이터 상태) */
+function GuidePreview({ crosswalk }: { crosswalk: NearbyCrosswalk }) {
   const [searchParams] = useSearchParams()
   const stateParam = searchParams.get('state')
   const statusParam = searchParams.get('status')
-  const isDemo = searchParams.get('demo') === '1'
-  const { setSelectedCrosswalkId, forcedSignal, dataMode } = useAppContext()
+  const loadStatus: LoadStatus = isPreviewStatus(statusParam) ? statusParam : 'ok'
+  const [strategy, setStrategy] = useState<StrategyType>(
+    isStrategyType(stateParam) ? stateParam : (defaultStrategyByCrosswalk[crosswalk.id] ?? 'NO_SIGNAL')
+  )
+  const scenario = loadStatus === 'delayed' || loadStatus === 'offline' ? statusScenarios[loadStatus] : guideScenarios[strategy]
 
-  const crosswalk = nearbyCrosswalks.find((item) => item.id === id)
+  // 미리보기의 타이머는 걷기 완료로 간주하지 않는다.
+  const handleCountdownEnd = () => {
+    if (scenario.dataStatus !== 'ok') return
+    if (scenario.next) setStrategy(scenario.next)
+  }
+
+  return (
+    <MobileFrame>
+      {loadStatus === 'loading' ? (
+        <CrosswalkLoading name={crosswalk.name} />
+      ) : (
+        <CrosswalkGuide
+          key={`${strategy}-${loadStatus}`}
+          name={crosswalk.name}
+          scenario={scenario}
+          onCountdownEnd={handleCountdownEnd}
+        />
+      )}
+    </MobileFrame>
+  )
+}
+
+/** mock 모드: 생성 신호 + 실제 GPS · 보행 속도로 예측한다. */
+function MockCrosswalkGuide({ crosswalk }: { crosswalk: NearbyCrosswalk }) {
+  const signal = useMockSignal()
+  return (
+    <PredictedGuide
+      crosswalk={crosswalk}
+      signal={signal}
+      footer={<p role="status" className="mt-3 text-center text-xs text-sub">데모 신호 · 실제 신호가 아니에요</p>}
+    />
+  )
+}
+
+/** A3 · B1~B5 · C2~C5 걷기 안내 */
+function LegacyCrosswalkPage({ crosswalk }: { crosswalk?: NearbyCrosswalk }) {
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const isPreview = isStrategyType(searchParams.get('state')) || isPreviewStatus(searchParams.get('status'))
+  const { setSelectedCrosswalkId, dataMode } = useAppContext()
+
   const selectedId = crosswalk?.id ?? null
 
   useEffect(() => {
     setSelectedCrosswalkId(selectedId)
   }, [selectedId, setSelectedCrosswalkId])
 
-  const name = crosswalk?.name ?? '이름 없는'
-  const initialStrategy =
-    isDemo && forcedSignal !== null
-      ? strategyBySignal[forcedSignal]
-      : isStrategyType(stateParam)
-        ? stateParam
-        : (defaultStrategyByCrosswalk[id] ?? 'NO_SIGNAL')
-
-  const [strategy, setStrategy] = useState<StrategyType>(initialStrategy)
-  const [loadStatus, setLoadStatus] = useState<LoadStatus>(isPreviewStatus(statusParam) ? statusParam : 'loading')
-  const [runId, setRunId] = useState(0)
-
-  // 목업 로딩: 잠깐 C2를 보여준 뒤 안내 화면으로 (?status=loading이면 계속 로딩)
-  useEffect(() => {
-    if (dataMode !== 'mock' || loadStatus !== 'loading' || statusParam === 'loading') return
-    const timer = setTimeout(() => setLoadStatus('ok'), MOCK_LOADING_MS)
-    return () => clearTimeout(timer)
-  }, [loadStatus, statusParam, dataMode])
-
-  const scenario = loadStatus === 'delayed' || loadStatus === 'offline' ? statusScenarios[loadStatus] : guideScenarios[strategy]
-
-  // 목업 흐름: SLOW_DOWN → (빨간불 끝) → CROSS_NOW → (건너기 끝) → 결과 화면
-  const handleCountdownEnd = () => {
-    if (scenario.dataStatus !== 'ok') return
-    if (scenario.next) setStrategy(scenario.next)
-    else if (strategy === 'CROSS_NOW') navigate('/result')
-  }
-
-  const handleForceSignal = (signal: SignalState) => {
-    setLoadStatus('ok')
-    setStrategy(strategyBySignal[signal])
-  }
-
-  const handleRestart = () => {
-    const restartStrategy = isStrategyType(stateParam)
-      ? stateParam
-      : (defaultStrategyByCrosswalk[id] ?? 'NO_SIGNAL')
-
-    setLoadStatus('ok')
-    setStrategy(restartStrategy)
-    setRunId((prev) => prev + 1)
-  }
-    // 존재하지 않는 횡단보도는 안내 화면으로 처리한다.
+  // 존재하지 않는 횡단보도는 안내 화면으로 처리한다.
   if (!crosswalk) {
     return (
       <MobileFrame>
@@ -209,9 +206,7 @@ function CrosswalkPage() {
     )
   }
 
-  if (dataMode === 'live') {
-    return <MobileFrame><LiveCrosswalkGuide key={crosswalk.id} crosswalk={crosswalk} /></MobileFrame>
-  }
+  if (isPreview) return <GuidePreview crosswalk={crosswalk} />
 
   if (dataMode === 'replay') {
     return (
@@ -228,19 +223,39 @@ function CrosswalkPage() {
 
   return (
     <MobileFrame>
-      {loadStatus === 'loading' ? (
-        <CrosswalkLoading name={name} />
-      ) : (
-        <CrosswalkGuide
-          key={`${strategy}-${loadStatus}-${runId}`}
-          name={name}
-          scenario={scenario}
-          onCountdownEnd={handleCountdownEnd}
-        />
-      )}
-      {isDemo && <DemoControlPanel signal={scenario.signal} onForceSignal={handleForceSignal} onRestart={handleRestart} />}
+      {dataMode === 'live'
+        ? <LiveCrosswalkGuide key={crosswalk.id} crosswalk={crosswalk} />
+        : <MockCrosswalkGuide crosswalk={crosswalk} />}
+      <RealWalkRecorder crosswalk={crosswalk} />
     </MobileFrame>
   )
 }
 
-export default CrosswalkPage
+export default function CrosswalkPage() {
+  const { id = '' } = useParams()
+  const [params] = useSearchParams()
+  const { discoveredCrosswalks } = useAppContext()
+  const [remote, setRemote] = useState<NearbyCrosswalk | null>(null)
+  const [failedId, setFailedId] = useState<string | null>(null)
+  const [detailAttempt, setDetailAttempt] = useState(0)
+  const known = nearbyCrosswalks.find(item => item.id === id) ?? discoveredCrosswalks.find(item => item.id === id)
+  const crosswalk = known ?? (remote?.id === id ? remote : undefined)
+  useEffect(() => {
+    if (crosswalk || !/^osm-(node|way)-\d+$/.test(id)) return
+    const controller = new AbortController()
+    loadCrosswalkById(id, controller.signal).then(item => {
+      if (controller.signal.aborted) return
+      if (item) setRemote(item)
+      else setFailedId(id)
+    }).catch(() => { if (!controller.signal.aborted) setFailedId(id) })
+    return () => controller.abort()
+  }, [id, crosswalk, detailAttempt])
+  if (!crosswalk && failedId === id) {
+    return <MobileFrame><div className="m-auto flex flex-col items-center gap-4 p-6 text-center"><p role="alert">횡단보도 정보를 불러오지 못했어요</p><button type="button" className="rounded-full border-2 border-ink px-4 py-2" onClick={() => { setFailedId(null); setDetailAttempt(value => value + 1) }}>다시 시도</button></div></MobileFrame>
+  }
+  if (!crosswalk && /^osm-(node|way)-\d+$/.test(id) && failedId !== id) {
+    return <MobileFrame><p role="status" className="m-auto p-6 text-center">횡단보도 정보를 불러오고 있어요</p></MobileFrame>
+  }
+  if (params.get('demo') === '1' && crosswalk) return <DemoCrosswalkPage crosswalk={crosswalk} />
+  return <LegacyCrosswalkPage key={id} crosswalk={crosswalk} />
+}

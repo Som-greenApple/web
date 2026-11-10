@@ -5,7 +5,7 @@ import {
   type DataMode,
   type GpsMode,
 } from './AppContext'
-import type { LatLngPosition } from '../types/crosswalk'
+import type { LatLngPosition, NearbyCrosswalk } from '../types/crosswalk'
 import type { SignalState } from '../types/signal'
 
 interface AppProviderProps {
@@ -13,6 +13,7 @@ interface AppProviderProps {
 }
 
 export default function AppProvider({ children }: AppProviderProps) {
+  const [discoveredCrosswalks, setDiscoveredCrosswalks] = useState<NearbyCrosswalk[]>([])
   const [position, setPosition] = useState<LatLngPosition | null>(null)
 
   const [selectedCrosswalkId, setSelectedCrosswalkId] =
@@ -29,6 +30,8 @@ export default function AppProvider({ children }: AppProviderProps) {
 
   const value = useMemo<AppContextValue>(
     () => ({
+      discoveredCrosswalks,
+      setDiscoveredCrosswalks,
       position,
       setPosition,
       selectedCrosswalkId,
@@ -45,6 +48,7 @@ export default function AppProvider({ children }: AppProviderProps) {
       setDemoPanelOpen,
     }),
     [
+      discoveredCrosswalks,
       position,
       selectedCrosswalkId,
       dataMode,
