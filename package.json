@@ -7,7 +7,11 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:legacy": "node --test tests/*.test.mjs",
+    "test:typecheck": "tsc -p tsconfig.test.json"
   },
   "dependencies": {
     "maplibre-gl": "^6.17.0",
@@ -30,6 +34,7 @@
     "tailwindcss": "^4.3.4",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.72.1",
-    "vite": "^8.3.6"
+    "vite": "^8.3.6",
+    "vitest": "^5.1.0"
   }
 }
