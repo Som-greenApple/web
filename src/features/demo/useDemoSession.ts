@@ -4,7 +4,10 @@ import { MAIN_GATE_POSITION, useLocation } from '../../context/location'
 import type { Crosswalk } from '../../types/crosswalk'
 import { beginCrossing, clearWalkResult, createWalkRecord, finishWalk, sampleWalk, type WalkRecord, type WalkResult } from '../walk/record'
 import type { SignalSample } from './engine'
-import { advancePosition, distanceM, liveSignalAt, predictGuide, REPLAY_PHASES, readLiveSignal, signalAt, startingPosition } from './engine'
+import { advancePosition, distanceM, liveSignalAt, REPLAY_PHASES, readLiveSignal, signalAt, startingPosition } from './engine'
+import { decideGuide, type GuideDecision } from '../strategy/predict'
+import { speedForPrediction } from '../strategy/speed'
+import { useWalkingSpeed } from '../strategy/useWalkingSpeed'
 
 export function useDemoSession(crosswalk: Crosswalk) {
   const { dataMode, gpsMode, speed, position, setPosition, forcedSignal } = useAppContext()
@@ -21,10 +24,7 @@ export function useDemoSession(crosswalk: Crosswalk) {
   const virtualPosition = useRef(startingPosition(target))
   const speedRef = useRef(speed)
   useEffect(() => { speedRef.current = speed }, [speed])
-  const [measuredSpeed, setMeasuredSpeed] = useState<number | null>(null)
-  const latestGps = useRef({ position: gpsPosition, status: gpsStatus, at: startedAt })
-  const previousGps = useRef<{ position: typeof gpsPosition; at: number } | null>(null)
-  useEffect(() => { latestGps.current = { position: gpsPosition, status: gpsStatus, at: Date.now() } }, [gpsPosition, gpsStatus])
+  const measuredSpeed = useWalkingSpeed()
   const [sample, setSample] = useState<SignalSample | null>(null)
   const [failed, setFailed] = useState(false)
   const [loading, setLoading] = useState(dataMode === 'live')
@@ -69,25 +69,9 @@ export function useDemoSession(crosswalk: Crosswalk) {
   }, [gpsMode, startTracking, setPosition, target, crosswalk.id])
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      const time = Date.now()
-      setNow(time)
-      if (gpsMode !== 'real') return
-      const current = latestGps.current
-      const previous = previousGps.current
-      if (current.status !== 'tracking' || time - current.at > 10_000) {
-        setMeasuredSpeed(null)
-        return
-      }
-      if (previous && current.at !== previous.at) {
-        const seconds = (current.at - previous.at) / 1000
-        const measured = seconds > 0 ? distanceM(previous.position, current.position) / seconds : 0
-        setMeasuredSpeed(measured <= 3 ? measured : null)
-      }
-      previousGps.current = current
-    }, 250)
+    const timer = setInterval(() => setNow(Date.now()), 250)
     return () => clearInterval(timer)
-  }, [gpsMode])
+  }, [])
 
   useEffect(() => {
     if (dataMode !== 'live') return
@@ -129,11 +113,13 @@ export function useDemoSession(crosswalk: Crosswalk) {
   const goal = phase === 'crossing' && length !== null ? { lat: target.lat + length / 111_195, lng: target.lng } : target
   const distance = actualPosition && (gpsMode === 'virtual' || crosswalk.position) ? distanceM(actualPosition, goal) : null
   const walkSpeed = gpsMode === 'virtual' ? speed : measuredSpeed
-  const strategy = phase === 'crossing' ? 'CROSS_NOW' : predictGuide(signal.signal, signal.remainSec, distance, Math.min(walkSpeed ?? 0, 1.4), length, signal.dataStatus)
+  const predictionSpeed = gpsMode === 'virtual' ? speed : speedForPrediction(measuredSpeed).speed
+  const decision: GuideDecision = decideGuide({ signal: signal.signal, remainSec: signal.remainSec, dataStatus: signal.dataStatus, distanceM: distance, lengthM: length, speed: predictionSpeed })
+  const strategy = phase === 'crossing' ? 'CROSS_NOW' : decision.strategy
   useEffect(() => { guidance.current = { mayCross: strategy === 'CROSS_NOW' && phase === 'approach', length } }, [strategy, phase, length])
   return {
     phase, completedResult,
-    signal, distance, length, strategy, walkSpeed, loading: loading && forcedSignal === null, error: forcedSignal === null ? error : '',
+    signal, distance, length, strategy, decision, walkSpeed, loading: loading && forcedSignal === null, error: forcedSignal === null ? error : '',
     elapsedSec: Math.floor((now - startedAt) / 1000),
     force: () => { const time = Date.now(); setForceStartedAt(time); setNow(time) },
   }

@@ -5,6 +5,8 @@ import test from 'node:test'
 import ts from 'typescript'
 import * as engine from '../src/features/demo/engine.ts'
 import * as walkRecord from '../src/features/walk/record.ts'
+import * as predict from '../src/features/strategy/predict.ts'
+import * as speed from '../src/features/strategy/speed.ts'
 
 const require = createRequire(import.meta.url)
 const source = readFileSync(new URL('../src/features/demo/useDemoSession.ts', import.meta.url), 'utf8')
@@ -44,6 +46,10 @@ function setup() {
     if (id.endsWith('context/location')) return { MAIN_GATE_POSITION: target, useLocation: () => location }
     if (id === './engine') return engine
     if (id === '../walk/record') return walkRecord
+    if (id === '../strategy/predict') return predict
+    if (id === '../strategy/speed') return speed
+    // 가상 걷기 테스트는 GPS 측정 속도를 쓰지 않는다.
+    if (id === '../strategy/useWalkingSpeed') return { useWalkingSpeed: () => null }
     return require(id)
   }, module, module.exports)
   function render() { cursor = 0; output = module.exports.useDemoSession(crosswalk); while (effects.length) effects.shift()(); return output }

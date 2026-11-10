@@ -1,6 +1,5 @@
 import type { LatLngPosition } from '../../types/crosswalk'
 import type { SignalState, DataStatus } from '../../types/signal'
-import type { StrategyType } from '../../types/strategy'
 
 export interface SignalSample { signal: SignalState; remainSec?: number; updatedAt: number }
 export const MOCK_PHASES: { signal: SignalState; durationSec: number }[] = [
@@ -54,14 +53,4 @@ export function liveSignalAt(sample: SignalSample | null, now: number, failed: b
   const ageSec = Math.max(0, Math.floor((now - sample.updatedAt) / 1000))
   if (ageSec > 30 || (sample.remainSec !== undefined && ageSec >= sample.remainSec)) return { signal: 'UNKNOWN', ageSec, dataStatus: 'offline' }
   return { signal: sample.signal, remainSec: sample.remainSec === undefined ? undefined : Math.max(0, Math.ceil(sample.remainSec - ageSec)), ageSec, dataStatus: ageSec >= 10 ? 'delayed' : 'ok' }
-}
-
-export function predictGuide(signal: SignalState, remainSec: number | undefined, distance: number | null, speed: number, lengthM: number | null, dataStatus: DataStatus): StrategyType {
-  if (dataStatus !== 'ok' || signal === 'UNKNOWN' || remainSec === undefined || distance === null || lengthM === null || speed <= 0 || !Number.isFinite(speed)) return 'NO_SIGNAL'
-  if (signal === 'FLASHING') return 'WAIT_NEXT'
-  if (signal === 'RED') return 'SLOW_DOWN'
-  const needed = (distance + lengthM) / speed + 3
-  if (needed <= remainSec) return distance <= 1 ? 'CROSS_NOW' : 'GO_NOW'
-  if (distance > 1 && (distance + lengthM) / 1.4 + 3 <= remainSec) return 'GO_FASTER'
-  return 'WAIT_NEXT'
 }
