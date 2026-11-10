@@ -6,6 +6,7 @@ import MobileFrame from '../components/MobileFrame'
 import { mergeCrosswalks } from '../features/map/nearbyCrosswalks'
 import { nearbyCrosswalks } from '../data/crosswalks'
 import type { NearbyCrosswalk } from '../types/crosswalk'
+import { useCrosswalkSignals } from '../features/signal/useCrosswalkSignals'
 
 import { useLocation } from '../context/location'
 import { sortCrosswalksByDistance } from '../lib/distance'
@@ -14,14 +15,22 @@ import { useAppContext } from '../context/useAppContext'
 const CrosswalkMap = lazy(() => import('../features/map/CrosswalkMap'))
 
 function signalSummary(crosswalk: NearbyCrosswalk) {
+  if (crosswalk.signalPresence === 'no') {
+    return '무신호 횡단보도'
+  }
+
+  if (crosswalk.signalPresence !== 'yes') {
+    return '신호 유무 미확인'
+  }
+
   if (!crosswalk.verified) {
-    return '현장 확인 전 · 실시간 예측을 제공하지 않아요'
+    return '신호등 있음 · 실시간 정보 없음'
   }
 
   const { signal, remainSec } = crosswalk
 
-  if (signal !== 'UNKNOWN' && remainSec === undefined) {
-    return '실시간 신호 정보가 없어요'
+  if (signal === 'UNKNOWN' || remainSec === undefined) {
+    return '신호등 있음 · 실시간 정보 없음'
   }
 
   switch (signal) {
@@ -31,8 +40,6 @@ function signalSummary(crosswalk: NearbyCrosswalk) {
       return `깜빡사과 ${remainSec}초 남음`
     case 'RED':
       return `빨간사과 ${remainSec}초 남음`
-    case 'UNKNOWN':
-      return '이 사과는 정보가 없어요'
   }
 }
 
@@ -50,6 +57,8 @@ function MainPage() {
 
   const {
     setSelectedCrosswalkId,
+    dataMode,
+    setDataMode,
     discoveredCrosswalks,
   } = useAppContext()
 
@@ -57,6 +66,7 @@ function MainPage() {
     searchParams.get('location') === 'denied' ||
     ['denied', 'unavailable', 'timeout', 'unsupported'].includes(status)
 
+  const liveSignals = useCrosswalkSignals(nearbyCrosswalks, dataMode === 'live')
   const allCrosswalks = useMemo(() => mergeCrosswalks(nearbyCrosswalks, discoveredCrosswalks), [discoveredCrosswalks])
 
   const sortedCrosswalks = useMemo(
@@ -65,7 +75,7 @@ function MainPage() {
   )
 
   const mapCrosswalks = useMemo(() => sortedCrosswalks.slice(0, 5), [sortedCrosswalks])
-  const listCrosswalks = useMemo(() => sortedCrosswalks.slice(0, 3), [sortedCrosswalks])
+  const listCrosswalks = useMemo(() => sortedCrosswalks.slice(0, 5), [sortedCrosswalks])
 
   useEffect(() => {
     if (
@@ -132,6 +142,17 @@ function MainPage() {
           가까운 횡단보도
         </h2>
 
+        <label className="mt-2 flex items-center justify-between text-sm">
+          신호 데이터
+          <select aria-label="신호 데이터 모드" value={dataMode} onChange={(event) => {
+            const mode = event.target.value
+            if (mode === 'mock' || mode === 'replay' || mode === 'live') setDataMode(mode)
+          }} className="rounded border border-ink bg-white px-2 py-1">
+            <option value="mock">데모</option>
+            <option value="live">실시간</option>
+            <option value="replay">기록 재생 · 준비 중</option>
+          </select>
+        </label>
         <ul className="mt-2">
           {listCrosswalks.map((crosswalk) => (
             <li
@@ -147,9 +168,11 @@ function MainPage() {
               >
                 <AppleIcon
                   signal={
-                    crosswalk.verified
-                      ? crosswalk.signal
-                      : 'UNKNOWN'
+                    !crosswalk.verified || crosswalk.signalPresence !== 'yes'
+                      ? 'UNKNOWN'
+                      : dataMode === 'live'
+                        ? liveSignals.getState(crosswalk).signal
+                        : dataMode === 'mock' ? crosswalk.signal : 'UNKNOWN'
                   }
                   className="ml-[7px]"
                 />
@@ -159,7 +182,14 @@ function MainPage() {
                     {crosswalk.name}
                   </span>
                   <span className="block text-[11px] leading-[15px] text-sub">
-                    {signalSummary(crosswalk)}
+                    {!crosswalk.verified || crosswalk.signalPresence !== 'yes' ? signalSummary(crosswalk)
+                      : dataMode === 'replay' ? '기록 재생은 준비 중이에요'
+                      : dataMode !== 'live' ? signalSummary(crosswalk)
+                      : !liveSignals.getState(crosswalk).supported ? '신호 정보 미연결'
+                      : liveSignals.getState(crosswalk).loading ? '신호 정보를 불러오고 있어요'
+                      : liveSignals.getState(crosswalk).dataStatus === 'offline' ? '최신 신호 정보를 확인할 수 없어요'
+                      : liveSignals.getState(crosswalk).signal === 'UNKNOWN' ? '현재 신호 정보 없음'
+                      : `${liveSignals.getState(crosswalk).dataStatus === 'delayed' ? '정보 지연 · ' : ''}${signalSummary({ ...crosswalk, signal: liveSignals.getState(crosswalk).signal, remainSec: liveSignals.getState(crosswalk).remainSec })}`}
                   </span>
                 </span>
 

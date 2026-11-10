@@ -1,7 +1,8 @@
 import type { DataStatus, SignalState } from '../types/signal'
 import type { StrategyType } from '../types/strategy'
 
-// TODO: 신호 API · 예측 알고리즘(features/strategy) 연동 전까지 쓰는 화면용 목업 (피그마 A3, B1~B5 값 그대로)
+// 피그마 화면 미리보기(?state=, ?status=) 전용 고정값 (피그마 A3, B1~B5 값 그대로).
+// 실제 안내는 features/strategy의 예측 로직을 사용한다.
 export interface GuideScenario {
   strategy: StrategyType
   signal: SignalState

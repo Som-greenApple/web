@@ -13,7 +13,7 @@ import StrategyCard from '../../components/StrategyCard'
 import StrategyIcon from '../../components/StrategyIcon'
 import WalkProgress from '../../components/WalkProgress'
 import { useAppContext } from '../../context/useAppContext'
-import { guideScenarios } from '../../data/mockGuides'
+import { guideCopy } from '../strategy/guideCopy'
 import type { Crosswalk } from '../../types/crosswalk'
 import { useDemoSession } from './useDemoSession'
 
@@ -29,13 +29,9 @@ function DemoRun({ crosswalk, onRestart }: { crosswalk: Crosswalk; onRestart: ()
     navigate('/result', { state: { walkResult: session.completedResult } })
   }, [session.completedResult, navigate])
   const { signal, distance, strategy, walkSpeed } = session
-  const content = guideScenarios[strategy]
+  const content = guideCopy(session.decision, signal.dataStatus)
   useEffect(() => { setSelectedCrosswalkId(crosswalk.id) }, [crosswalk.id, setSelectedCrosswalkId])
-  const description = strategy === 'NO_SIGNAL'
-    ? '위치·속도·신호·횡단 길이가 준비되면 예측을 다시 계산해요'
-    : strategy === 'SLOW_DOWN'
-      ? '빨간 신호예요. 횡단보도 앞에서 다음 초록 신호를 기다려요'
-      : content.description
+  const description = content.description
   return (
     <MobileFrame>
       <div className="flex flex-1 flex-col px-[13px] pb-4 pt-[49px]">
@@ -48,7 +44,7 @@ function DemoRun({ crosswalk, onRestart }: { crosswalk: Crosswalk; onRestart: ()
         {session.loading ? <CrosswalkLoading name={crosswalk.name} /> : <>
           <div className="mt-4"><SignalApple signal={signal.signal} remainSec={signal.remainSec} showMessage={false} /></div>
           {session.error && <p role="alert" className="mx-2 mt-3 text-center text-sm text-sub">{session.error}</p>}
-          {signal.dataStatus === 'delayed' && <p role="status" className="mt-2 text-center text-sm">{signal.ageSec}초 전 정보 · 예측을 중지했어요</p>}
+          {signal.dataStatus === 'delayed' && <p role="status" className="mt-2 text-center text-sm">{signal.ageSec}초 전 정보 · 여유 시간을 더 두고 예측해요</p>}
           <div className="mt-6">
             {distance !== null ? <WalkProgress distanceM={Math.ceil(distance)} signal={signal.signal} arrived={session.phase === 'crossing' || distance <= 1} /> : <p className="py-8 text-center text-sub">현재 위치 또는 횡단보도 좌표를 확인해 주세요</p>}
           </div>

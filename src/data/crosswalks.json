@@ -1,10 +1,16 @@
 [
   {
-    "id": "main-gate",
-    "name": "정문 앞",
-    "position": null,
+    "id": "osm-node-10694823523",
+    "name": "장월로10가길 인근 횡단보도",
+    "position": {
+      "lat": 37.6043385,
+      "lng": 127.0427573
+    },
     "lengthM": null,
     "controllerId": null,
+    "signalIntersectionId": null,
+    "signalDirection": null,
+    "signalPresence": "unknown",
     "verified": false
   },
   {
@@ -13,6 +19,9 @@
     "position": null,
     "lengthM": null,
     "controllerId": null,
+    "signalIntersectionId": null,
+    "signalDirection": null,
+    "signalPresence": "unknown",
     "verified": false
   },
   {
@@ -21,6 +30,9 @@
     "position": null,
     "lengthM": null,
     "controllerId": null,
+    "signalIntersectionId": null,
+    "signalDirection": null,
+    "signalPresence": "unknown",
     "verified": false
   }
 ]

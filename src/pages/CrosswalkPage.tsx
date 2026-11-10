@@ -5,6 +5,7 @@ import CrosswalkHeader from '../components/CrosswalkHeader'
 import CrosswalkLoading from '../components/CrosswalkLoading'
 import DataStatusBanner from '../components/DataStatusBanner'
 import MobileFrame from '../components/MobileFrame'
+import LiveCrosswalkGuide from '../components/LiveCrosswalkGuide'
 import SafetyNote from '../components/SafetyNote'
 import SignalApple from '../components/SignalApple'
 import StatBox from '../components/StatBox'
@@ -12,6 +13,8 @@ import StrategyCard from '../components/StrategyCard'
 import StrategyIcon from '../components/StrategyIcon'
 import WalkProgress from '../components/WalkProgress'
 import { loadCrosswalkById } from '../features/map/nearbyCrosswalks'
+import PredictedGuide from '../features/strategy/PredictedGuide'
+import { useMockSignal } from '../features/signal/useMockSignal'
 import type { NearbyCrosswalk } from '../types/crosswalk'
 import { nearbyCrosswalks } from '../data/crosswalks'
 import { useAppContext } from '../context/useAppContext'
@@ -24,9 +27,6 @@ import {
 import type { DataStatus } from '../types/signal'
 import DemoCrosswalkPage from '../features/demo/DemoCrosswalkPage'
 import { STRATEGY_TYPES, type StrategyType } from '../types/strategy'
-
-// TODO: 신호 API 연동되면 실제 요청 시간으로 대체
-const MOCK_LOADING_MS = 800
 
 type LoadStatus = 'loading' | DataStatus
 
@@ -46,7 +46,7 @@ interface CrosswalkGuideProps {
   onCountdownEnd: () => void
 }
 
-/** 한 가지 안내 상태 화면. 상태가 바뀌면 key로 새로 그려서 카운트다운을 초기화한다 */
+/** 피그마 미리보기용 안내 화면. 상태가 바뀌면 key로 새로 그려서 카운트다운을 초기화한다 */
 function CrosswalkGuide({ name, scenario, onCountdownEnd }: CrosswalkGuideProps) {
   const [remainSec, setRemainSec] = useState(scenario.remainSec)
   const { dataStatus } = scenario
@@ -97,46 +97,63 @@ function CrosswalkGuide({ name, scenario, onCountdownEnd }: CrosswalkGuideProps)
   )
 }
 
-/**
- * A3 · B1~B5 · C2~C5 걷기 안내.
- * 목업 미리보기: ?state=GO_FASTER (안내 상태), ?status=loading|delayed|offline (데이터 상태), ?demo=1 (데모 패널)
- */
-function LegacyCrosswalkPage({ crosswalk }: { crosswalk?: NearbyCrosswalk }) {
-  const navigate = useNavigate()
-  const { id = '' } = useParams()
+/** 피그마 화면 미리보기: ?state=GO_FASTER (안내 상태), ?status=loading|delayed|offline (데이터 상태) */
+function GuidePreview({ crosswalk }: { crosswalk: NearbyCrosswalk }) {
   const [searchParams] = useSearchParams()
   const stateParam = searchParams.get('state')
   const statusParam = searchParams.get('status')
-  const { setSelectedCrosswalkId } = useAppContext()
+  const loadStatus: LoadStatus = isPreviewStatus(statusParam) ? statusParam : 'ok'
+  const [strategy, setStrategy] = useState<StrategyType>(
+    isStrategyType(stateParam) ? stateParam : (defaultStrategyByCrosswalk[crosswalk.id] ?? 'NO_SIGNAL')
+  )
+  const scenario = loadStatus === 'delayed' || loadStatus === 'offline' ? statusScenarios[loadStatus] : guideScenarios[strategy]
+
+  // 미리보기의 타이머는 걷기 완료로 간주하지 않는다.
+  const handleCountdownEnd = () => {
+    if (scenario.dataStatus !== 'ok') return
+    if (scenario.next) setStrategy(scenario.next)
+  }
+
+  return (
+    <MobileFrame>
+      {loadStatus === 'loading' ? (
+        <CrosswalkLoading name={crosswalk.name} />
+      ) : (
+        <CrosswalkGuide
+          key={`${strategy}-${loadStatus}`}
+          name={crosswalk.name}
+          scenario={scenario}
+          onCountdownEnd={handleCountdownEnd}
+        />
+      )}
+    </MobileFrame>
+  )
+}
+
+/** mock 모드: 생성 신호 + 실제 GPS · 보행 속도로 예측한다. */
+function MockCrosswalkGuide({ crosswalk }: { crosswalk: NearbyCrosswalk }) {
+  const signal = useMockSignal()
+  return (
+    <PredictedGuide
+      crosswalk={crosswalk}
+      signal={signal}
+      footer={<p role="status" className="mt-3 text-center text-xs text-sub">데모 신호 · 실제 신호가 아니에요</p>}
+    />
+  )
+}
+
+/** A3 · B1~B5 · C2~C5 걷기 안내 */
+function LegacyCrosswalkPage({ crosswalk }: { crosswalk?: NearbyCrosswalk }) {
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const isPreview = isStrategyType(searchParams.get('state')) || isPreviewStatus(searchParams.get('status'))
+  const { setSelectedCrosswalkId, dataMode } = useAppContext()
 
   const selectedId = crosswalk?.id ?? null
 
   useEffect(() => {
     setSelectedCrosswalkId(selectedId)
   }, [selectedId, setSelectedCrosswalkId])
-
-  const name = crosswalk?.name ?? '이름 없는'
-  const initialStrategy = isStrategyType(stateParam)
-    ? stateParam
-    : (defaultStrategyByCrosswalk[id] ?? 'NO_SIGNAL')
-
-  const [strategy, setStrategy] = useState<StrategyType>(initialStrategy)
-  const [loadStatus, setLoadStatus] = useState<LoadStatus>(isPreviewStatus(statusParam) ? statusParam : 'loading')
-
-  // 목업 로딩: 잠깐 C2를 보여준 뒤 안내 화면으로 (?status=loading이면 계속 로딩)
-  useEffect(() => {
-    if (loadStatus !== 'loading' || statusParam === 'loading') return
-    const timer = setTimeout(() => setLoadStatus('ok'), MOCK_LOADING_MS)
-    return () => clearTimeout(timer)
-  }, [loadStatus, statusParam])
-
-  const scenario = loadStatus === 'delayed' || loadStatus === 'offline' ? statusScenarios[loadStatus] : guideScenarios[strategy]
-
-  // 화면 미리보기의 타이머는 걷기 완료로 간주하지 않는다.
-  const handleCountdownEnd = () => {
-    if (scenario.dataStatus !== 'ok') return
-    if (scenario.next) setStrategy(scenario.next)
-  }
 
   // 존재하지 않는 횡단보도는 안내 화면으로 처리한다.
   if (!crosswalk) {
@@ -157,7 +174,7 @@ function LegacyCrosswalkPage({ crosswalk }: { crosswalk?: NearbyCrosswalk }) {
   }
 
   // 현장 확인 전에는 목업을 포함한 횡단 예측 안내를 표시하지 않는다.
-  if (!crosswalk.verified) {
+  if (!crosswalk.verified || crosswalk.signalPresence !== 'yes') {
     return (
       <MobileFrame>
         <div className="flex flex-1 flex-col px-[13px] pb-4 pt-[49px]">
@@ -168,13 +185,23 @@ function LegacyCrosswalkPage({ crosswalk }: { crosswalk?: NearbyCrosswalk }) {
           </div>
 
           <h1 className="mt-8 text-center text-xl">
-            현장 확인 전인 횡단보도예요
+            {crosswalk.signalPresence === 'no'
+              ? '무신호 횡단보도예요'
+              : crosswalk.signalPresence === 'yes'
+                ? '신호등이 있는 횡단보도예요'
+                : '신호등 유무를 아직 확인하지 못했어요'}
           </h1>
 
           <p className="mt-3 text-center text-sm leading-6 text-sub">
-            실시간 신호와 횡단 예측을 제공하지 않아요.
+            {crosswalk.signalPresence === 'no'
+              ? '신호등이 없는 것으로 등록되어 있어요.'
+              : crosswalk.signalPresence === 'yes'
+                ? '실시간 신호 정보는 아직 연결되지 않았어요.'
+                : '현재 지도 정보만으로 신호등 유무를 확인할 수 없어요.'}
             <br />
-            현장의 신호등을 직접 확인해 주세요.
+            실시간 횡단 예측은 제공하지 않아요.
+            <br />
+            현장의 신호등과 주변 차량을 직접 확인해 주세요.
           </p>
 
           <button
@@ -189,18 +216,26 @@ function LegacyCrosswalkPage({ crosswalk }: { crosswalk?: NearbyCrosswalk }) {
     )
   }
 
+  if (isPreview) return <GuidePreview crosswalk={crosswalk} />
+
+  if (dataMode === 'replay') {
+    return (
+      <MobileFrame>
+        <div className="flex flex-1 flex-col gap-5 px-[13px] pt-[49px]">
+          <CrosswalkHeader name={crosswalk.name} />
+          <SignalApple signal="UNKNOWN" showMessage={false} />
+          <p role="status" className="text-center">기록 재생은 준비 중이에요.</p>
+          <button type="button" onClick={() => navigate('/main')}>목록으로 돌아가기</button>
+        </div>
+      </MobileFrame>
+    )
+  }
+
   return (
     <MobileFrame>
-      {loadStatus === 'loading' ? (
-        <CrosswalkLoading name={name} />
-      ) : (
-        <CrosswalkGuide
-          key={`${strategy}-${loadStatus}`}
-          name={name}
-          scenario={scenario}
-          onCountdownEnd={handleCountdownEnd}
-        />
-      )}
+      {dataMode === 'live'
+        ? <LiveCrosswalkGuide key={crosswalk.id} crosswalk={crosswalk} />
+        : <MockCrosswalkGuide crosswalk={crosswalk} />}
       <RealWalkRecorder crosswalk={crosswalk} />
     </MobileFrame>
   )

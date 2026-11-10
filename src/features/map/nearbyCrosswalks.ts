@@ -1,4 +1,8 @@
-import type { LatLngPosition, NearbyCrosswalk } from '../../types/crosswalk'
+import type {
+  LatLngPosition,
+  NearbyCrosswalk,
+  SignalPresence,
+} from '../../types/crosswalk'
 
 interface OsmElement {
   type: string
@@ -19,6 +23,35 @@ function validPosition(lat: unknown, lng: unknown): boolean {
 function angle(a: LatLngPosition, b: LatLngPosition): number {
   return Math.atan2((b.lng - a.lng) * Math.cos(a.lat * Math.PI / 180), b.lat - a.lat) * 180 / Math.PI
 }
+/** 신호등 유무만 분류한다. 현재 신호 색이나 실시간 제공 여부는 판단하지 않는다. */
+function parseSignalPresence(
+  tags: Record<string, string>,
+): SignalPresence {
+  const hasSignals =
+    tags['crossing:signals'] === 'yes' ||
+    tags.crossing === 'traffic_signals'
+
+  const hasNoSignals =
+    tags['crossing:signals'] === 'no' ||
+    tags.crossing === 'uncontrolled'
+
+  // 서로 모순되는 정보는 미확인으로 처리한다.
+  if (hasSignals && hasNoSignals) {
+    return 'unknown'
+  }
+
+  if (hasSignals) {
+    return 'yes'
+  }
+
+  if (hasNoSignals) {
+    return 'no'
+  }
+
+  // unmarked, zebra 등 노면 표시 정보만으로 신호 유무를 추정하지 않는다.
+  return 'unknown'
+}
+
 /** OSM의 실제 crossing 태그만 사용한다. 신호색·제어기·현장 검증 여부는 추정하지 않는다. */
 export function parseCrosswalks(value: unknown): NearbyCrosswalk[] {
   if (!value || typeof value !== 'object' || !Array.isArray((value as { elements?: unknown }).elements)) throw new Error('횡단보도 응답을 읽을 수 없어요')
@@ -59,7 +92,23 @@ export function parseCrosswalks(value: unknown): NearbyCrosswalk[] {
     const id = `osm-${element.type}-${element.id}`
     if (seen.has(id)) continue
     seen.add(id)
-    crossings.push({ id, name: tags['name:ko'] || tags.name || (roadName ? `${roadName} 인근` : '주변 횡단보도'), position: center, lengthM: null, controllerId: null, verified: false, signal: 'UNKNOWN', distanceM: null, mapRotation: rotation })
+    crossings.push({
+      id,
+      name:
+        tags['name:ko'] ||
+        tags.name ||
+        (roadName ? `${roadName} 인근` : '주변 횡단보도'),
+      position: center,
+      lengthM: null,
+      controllerId: null,
+      signalIntersectionId: null,
+      signalDirection: null,
+      signalPresence: parseSignalPresence(tags),
+      verified: false,
+      signal: 'UNKNOWN',
+      distanceM: null,
+      mapRotation: rotation,
+    })
   }
   return crossings
 }

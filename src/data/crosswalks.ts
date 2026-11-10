@@ -1,12 +1,29 @@
 import crosswalkData from './crosswalks.json'
-import type { Crosswalk, NearbyCrosswalk } from '../types/crosswalk'
+import type {
+  Crosswalk,
+  NearbyCrosswalk,
+  SignalPresence,
+} from '../types/crosswalk'
 
-export const crosswalks: Crosswalk[] = crosswalkData
+function parseSignalPresence(value: string): SignalPresence {
+  switch (value) {
+    case 'yes':
+    case 'no':
+    case 'unknown':
+      return value
 
-/**
- * 실제 신호 API와 사용자 위치가 연결되기 전의 화면 데이터.
- * 현장 확인 여부만으로 현재 신호를 알 수는 없으므로 UNKNOWN으로 시작한다.
- */
+    default:
+      throw new Error(`잘못된 signalPresence 값: ${value}`)
+  }
+}
+
+export const crosswalks: Crosswalk[] = crosswalkData.map(
+  (crosswalk) => ({
+    ...crosswalk,
+    signalPresence: parseSignalPresence(crosswalk.signalPresence),
+  }),
+)
+
 export const nearbyCrosswalks: NearbyCrosswalk[] = crosswalks.map(
   (crosswalk) => ({
     ...crosswalk,
