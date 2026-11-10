@@ -1,5 +1,8 @@
 import type { SignalState } from './signal'
 
+/** 신호등 있음 / 없음 / 미확인 */
+export type SignalPresence = 'yes' | 'no' | 'unknown'
+
 export interface LatLngPosition {
   lat: number
   lng: number
@@ -17,6 +20,8 @@ export interface Crosswalk {
   signalIntersectionId: string | null
   /** 보행 신호 방향: nt / et / st / wt / ne / se / sw / nw */
   signalDirection: string | null
+  /** 신호등 유무. 실시간 신호 연결 검증 여부와는 별개다. */
+  signalPresence: SignalPresence
   /** 현장에서 정보를 확인한 경우에만 true */
   verified: boolean
   /** 지도 줄무늬 회전각. OSM 경로 방향으로 계산한다. */

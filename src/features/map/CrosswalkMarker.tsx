@@ -16,7 +16,14 @@ export default function CrosswalkMarker({ crosswalk, onSelect, showName = true }
       aria-label={`${crosswalk.name} 횡단보도 보기`}
       className="flex min-h-11 min-w-11 flex-col items-center justify-center gap-1 rounded-lg p-1 transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 active:scale-90"
     >
-      <AppleIcon signal={crosswalk.verified ? crosswalk.signal : 'UNKNOWN'} size="md" />
+      <AppleIcon
+        signal={
+          crosswalk.verified && crosswalk.signalPresence === 'yes'
+            ? crosswalk.signal
+            : 'UNKNOWN'
+        }
+        size="md"
+      />
       {showName && <span className="whitespace-nowrap rounded bg-white/95 px-2 py-0.5 text-xs text-ink">{crosswalk.name}</span>}
     </button>
   )

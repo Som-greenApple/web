@@ -34,7 +34,31 @@ test('미확인 횡단보도는 입력 신호와 무관하게 UNKNOWN으로 표�
 
 test('확인된 횡단보도의 각 신호를 사과에 전달한다', () => {
   for (const signal of ['GREEN', 'FLASHING', 'RED', 'UNKNOWN']) {
-    const marker = CrosswalkMarker({ crosswalk: { ...base, verified: true, signal }, onSelect() {} })
+    const marker = CrosswalkMarker({ crosswalk: {
+      ...base,
+      verified: true,
+      signalPresence: 'yes',
+      signal,
+    },onSelect() {} })
     assert.equal(marker.props.children[0].props.signal, signal)
+  }
+})
+
+test('신호등 없음·미확인은 verified가 true여도 UNKNOWN으로 표시한다', () => {
+  for (const signalPresence of ['no', 'unknown']) {
+    const marker = CrosswalkMarker({
+      crosswalk: {
+        ...base,
+        verified: true,
+        signalPresence,
+        signal: 'GREEN',
+      },
+      onSelect() {},
+    })
+
+    assert.equal(
+      marker.props.children[0].props.signal,
+      'UNKNOWN',
+    )
   }
 })

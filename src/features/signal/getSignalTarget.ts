@@ -30,7 +30,7 @@ function isSignalDirection(value: string): value is SignalDirection {
 export function getSignalTarget(
   crosswalk: Crosswalk | undefined,
 ): SignalTarget | null {
-  if (!crosswalk?.verified) {
+  if (!crosswalk?.verified || crosswalk.signalPresence !== 'yes') {
     return null
   }
 
