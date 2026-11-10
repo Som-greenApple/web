@@ -20,7 +20,7 @@ function load(file, mocks = {}) {
 const { signalView } = load('../src/features/signal/signalView.ts')
 const { getSignalTarget } = load('../src/features/signal/getSignalTarget.ts')
 const handler = load('../api/signal.ts').default
-const crosswalk = { id: 'fixture', verified: true, signalIntersectionId: '451', signalDirection: 'ne' }
+const crosswalk = { id: 'fixture', verified: true, signalPresence: 'yes', signalIntersectionId: '451', signalDirection: 'ne' }
 const data = {
   itstId: '451', direction: 'ne', signal: 'GREEN', remainSec: 20,
   ageSec: 2, dataStatus: 'ok', sourceTimestamp: 98000,
@@ -39,6 +39,9 @@ test('정보 경과에 따라 지연·만료 처리하고 다음 신호를 추�
 
 test('현장 미확인·매핑 누락·잘못된 방향은 요청 대상으로 사용하지 않는다', () => {
   assert.equal(getSignalTarget({ ...crosswalk, verified: false }), null)
+  for (const signalPresence of ['no', 'unknown']) {
+    assert.equal(getSignalTarget({ ...crosswalk, signalPresence }), null)
+  }
   assert.equal(getSignalTarget({ ...crosswalk, signalIntersectionId: null }), null)
   assert.equal(getSignalTarget({ ...crosswalk, signalDirection: 'invalid' }), null)
   assert.deepEqual(getSignalTarget(crosswalk), { itstId: '451', direction: 'ne' })

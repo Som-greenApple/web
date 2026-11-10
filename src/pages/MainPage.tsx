@@ -15,14 +15,22 @@ import { useAppContext } from '../context/useAppContext'
 const CrosswalkMap = lazy(() => import('../features/map/CrosswalkMap'))
 
 function signalSummary(crosswalk: NearbyCrosswalk) {
+  if (crosswalk.signalPresence === 'no') {
+    return '무신호 횡단보도'
+  }
+
+  if (crosswalk.signalPresence !== 'yes') {
+    return '신호 유무 미확인'
+  }
+
   if (!crosswalk.verified) {
-    return '현장 확인 전 · 실시간 예측을 제공하지 않아요'
+    return '신호등 있음 · 실시간 정보 없음'
   }
 
   const { signal, remainSec } = crosswalk
 
-  if (signal !== 'UNKNOWN' && remainSec === undefined) {
-    return '실시간 신호 정보가 없어요'
+  if (signal === 'UNKNOWN' || remainSec === undefined) {
+    return '신호등 있음 · 실시간 정보 없음'
   }
 
   switch (signal) {
@@ -32,8 +40,6 @@ function signalSummary(crosswalk: NearbyCrosswalk) {
       return `깜빡사과 ${remainSec}초 남음`
     case 'RED':
       return `빨간사과 ${remainSec}초 남음`
-    case 'UNKNOWN':
-      return '이 사과는 정보가 없어요'
   }
 }
 
@@ -69,7 +75,7 @@ function MainPage() {
   )
 
   const mapCrosswalks = useMemo(() => sortedCrosswalks.slice(0, 5), [sortedCrosswalks])
-  const listCrosswalks = useMemo(() => sortedCrosswalks.slice(0, 3), [sortedCrosswalks])
+  const listCrosswalks = useMemo(() => sortedCrosswalks.slice(0, 5), [sortedCrosswalks])
 
   useEffect(() => {
     if (
@@ -162,9 +168,11 @@ function MainPage() {
               >
                 <AppleIcon
                   signal={
-                    dataMode === 'live'
-                      ? liveSignals.getState(crosswalk).signal
-                      : dataMode === 'mock' && crosswalk.verified ? crosswalk.signal : 'UNKNOWN'
+                    !crosswalk.verified || crosswalk.signalPresence !== 'yes'
+                      ? 'UNKNOWN'
+                      : dataMode === 'live'
+                        ? liveSignals.getState(crosswalk).signal
+                        : dataMode === 'mock' ? crosswalk.signal : 'UNKNOWN'
                   }
                   className="ml-[7px]"
                 />
@@ -174,7 +182,7 @@ function MainPage() {
                     {crosswalk.name}
                   </span>
                   <span className="block text-[11px] leading-[15px] text-sub">
-                    {!crosswalk.verified ? signalSummary(crosswalk)
+                    {!crosswalk.verified || crosswalk.signalPresence !== 'yes' ? signalSummary(crosswalk)
                       : dataMode === 'replay' ? '기록 재생은 준비 중이에요'
                       : dataMode !== 'live' ? signalSummary(crosswalk)
                       : !liveSignals.getState(crosswalk).supported ? '신호 정보 미연결'

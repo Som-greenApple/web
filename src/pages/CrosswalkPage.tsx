@@ -174,7 +174,7 @@ function LegacyCrosswalkPage({ crosswalk }: { crosswalk?: NearbyCrosswalk }) {
   }
 
   // 현장 확인 전에는 목업을 포함한 횡단 예측 안내를 표시하지 않는다.
-  if (!crosswalk.verified) {
+  if (!crosswalk.verified || crosswalk.signalPresence !== 'yes') {
     return (
       <MobileFrame>
         <div className="flex flex-1 flex-col px-[13px] pb-4 pt-[49px]">
@@ -185,13 +185,23 @@ function LegacyCrosswalkPage({ crosswalk }: { crosswalk?: NearbyCrosswalk }) {
           </div>
 
           <h1 className="mt-8 text-center text-xl">
-            현장 확인 전인 횡단보도예요
+            {crosswalk.signalPresence === 'no'
+              ? '무신호 횡단보도예요'
+              : crosswalk.signalPresence === 'yes'
+                ? '신호등이 있는 횡단보도예요'
+                : '신호등 유무를 아직 확인하지 못했어요'}
           </h1>
 
           <p className="mt-3 text-center text-sm leading-6 text-sub">
-            실시간 신호와 횡단 예측을 제공하지 않아요.
+            {crosswalk.signalPresence === 'no'
+              ? '신호등이 없는 것으로 등록되어 있어요.'
+              : crosswalk.signalPresence === 'yes'
+                ? '실시간 신호 정보는 아직 연결되지 않았어요.'
+                : '현재 지도 정보만으로 신호등 유무를 확인할 수 없어요.'}
             <br />
-            현장의 신호등을 직접 확인해 주세요.
+            실시간 횡단 예측은 제공하지 않아요.
+            <br />
+            현장의 신호등과 주변 차량을 직접 확인해 주세요.
           </p>
 
           <button
