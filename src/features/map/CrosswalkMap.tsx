@@ -1,24 +1,26 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Map, Marker, NavigationControl, AttributionControl, setWorkerUrl } from 'maplibre-gl'
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import walker from '../../assets/figma/walker.svg'
 import { MAIN_GATE_POSITION as DEFAULT_POSITION, useLocation } from '../../context/location'
-import { nearbyCrosswalks } from '../../data/crosswalks'
+import { useAppContext } from '../../context/useAppContext'
+import { loadNearbyCrosswalks, metersApart } from './nearbyCrosswalks'
 import type { NearbyCrosswalk } from '../../types/crosswalk'
-import CrosswalkMarker from './CrosswalkMarker'
+import CrossingMarker from './CrossingMarker'
 import { createSketchStyle } from './sketchStyle'
 
 setWorkerUrl(workerUrl)
 
 interface CrosswalkMapProps {
+  crosswalks: NearbyCrosswalk[]
   onSelectCrosswalk: (id: string) => void
 }
 interface MarkerTarget { crosswalk: NearbyCrosswalk; element: HTMLDivElement }
 
 /** 지역 제한 없이 실제 도로만 흑백 블록 스타일로 그린다. */
-function CrosswalkMap({ onSelectCrosswalk }: CrosswalkMapProps) {
+function CrosswalkMap({ crosswalks, onSelectCrosswalk }: CrosswalkMapProps) {
   const { position, status, startTracking } = useLocation()
   const container = useRef<HTMLDivElement>(null)
   const mapRef = useRef<Map | null>(null)
@@ -26,7 +28,11 @@ function CrosswalkMap({ onSelectCrosswalk }: CrosswalkMapProps) {
   const follow = useRef(true)
   const latestPosition = useRef(position)
   useEffect(() => { latestPosition.current = position }, [position])
-  const [targets, setTargets] = useState<MarkerTarget[]>([])
+  const { setDiscoveredCrosswalks } = useAppContext()
+  const [crossingStatus, setCrossingStatus] = useState<'loading' | 'ready' | 'empty' | 'error'>('loading')
+  const [crossingAttempt, setCrossingAttempt] = useState(0)
+  const [zoom, setZoom] = useState(16.5)
+  const targets = useMemo<MarkerTarget[]>(() => zoom < 15 ? [] : crosswalks.filter(crosswalk => crosswalk.position).map(crosswalk => ({ crosswalk, element: document.createElement('div') })), [crosswalks, zoom])
   const [mapStatus, setMapStatus] = useState<'loading' | 'ready' | 'error'>('loading')
   const [attempt, setAttempt] = useState(0)
 
@@ -34,7 +40,6 @@ function CrosswalkMap({ onSelectCrosswalk }: CrosswalkMapProps) {
     if (!container.current) return
     let map: Map
     let cancelled = false
-    const markers: Marker[] = []
     let timer: ReturnType<typeof setTimeout> | undefined
     try {
       const center = latestPosition.current ?? DEFAULT_POSITION
@@ -66,24 +71,13 @@ function CrosswalkMap({ onSelectCrosswalk }: CrosswalkMapProps) {
         }
       })
       timer = setTimeout(() => { if (!cancelled) setMapStatus('error') }, 25_000)
-      map.on('load', () => {
-        if (cancelled) return
-        const nextTargets: MarkerTarget[] = []
-        for (const crosswalk of nearbyCrosswalks) {
-          if (!crosswalk.position) continue
-          const element = document.createElement('div')
-          markers.push(new Marker({ element, anchor: 'center' }).setLngLat([crosswalk.position.lng, crosswalk.position.lat]).addTo(map))
-          nextTargets.push({ crosswalk, element })
-        }
-        setTargets(nextTargets)
-      })
+      map.on('zoomend', () => { if (!cancelled) setZoom(map.getZoom()) })
       const observer = new ResizeObserver(() => map.resize())
       observer.observe(container.current)
       return () => {
         cancelled = true
         clearTimeout(timer)
         observer.disconnect()
-        markers.forEach((marker) => marker.remove())
         userMarker.current?.remove()
         userMarker.current = null
         mapRef.current = null
@@ -100,6 +94,48 @@ function CrosswalkMap({ onSelectCrosswalk }: CrosswalkMapProps) {
       }
     }
   }, [attempt])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    const markers = targets.map(({ crosswalk, element }) => new Marker({ element, anchor: 'center' }).setLngLat([crosswalk.position!.lng, crosswalk.position!.lat]).addTo(map))
+    return () => markers.forEach(marker => marker.remove())
+  }, [targets, attempt])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    let cancelled = false
+    let active: AbortController | null = null
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let previousCenter: { lat: number; lng: number } | null = null
+    let sequence = 0
+    const schedule = () => {
+      if (map.getZoom() < 15) return
+      const center = map.getCenter()
+      const point = { lat: center.lat, lng: center.lng }
+      if (previousCenter && metersApart(previousCenter, point) < 180) return
+      clearTimeout(timer)
+      active?.abort()
+      const currentSequence = ++sequence
+      timer = setTimeout(async () => {
+        active = new AbortController()
+        setCrossingStatus('loading')
+        try {
+          const crossings = await loadNearbyCrosswalks(point, active.signal)
+          if (cancelled || currentSequence !== sequence) return
+          previousCenter = point
+          setDiscoveredCrosswalks(crossings)
+          setCrossingStatus(crossings.length ? 'ready' : 'empty')
+        } catch {
+          if (!cancelled && currentSequence === sequence) setCrossingStatus('error')
+        }
+      }, 700)
+    }
+    map.on('moveend', schedule)
+    schedule()
+    return () => { cancelled = true; sequence += 1; clearTimeout(timer); active?.abort(); map.off('moveend', schedule) }
+  }, [attempt, crossingAttempt, setDiscoveredCrosswalks])
 
   useEffect(() => {
     const map = mapRef.current
@@ -144,8 +180,11 @@ function CrosswalkMap({ onSelectCrosswalk }: CrosswalkMapProps) {
           </div>
         )}
         <button type="button" onClick={locate} disabled={status === 'locating'} className="absolute bottom-8 right-2 rounded-full border-2 border-ink bg-white px-3 py-1 text-xs disabled:opacity-50">{status === 'locating' ? '위치 확인 중' : '내 위치'}</button>
-        {targets.map(({ crosswalk, element }) => createPortal(<CrosswalkMarker crosswalk={crosswalk} onSelect={onSelectCrosswalk} showName={false} />, element, crosswalk.id))}
+        {targets.map(({ crosswalk, element }) => createPortal(<CrossingMarker crosswalk={crosswalk} onSelect={onSelectCrosswalk} />, element, crosswalk.id))}
       </div>
+      <figcaption role="status" className="mt-1 text-center text-xs text-sub">
+        {zoom < 15 ? '확대하면 횡단보도와 사과가 보여요' : crossingStatus === 'loading' ? '주변 횡단보도를 불러오고 있어요' : crossingStatus === 'empty' ? '이 주변에 등록된 횡단보도가 없어요' : crossingStatus === 'error' ? <><span>주변 횡단보도를 불러오지 못했어요 </span><button type="button" className="underline" onClick={() => setCrossingAttempt(value => value + 1)}>다시 시도</button></> : '사과를 누르면 횡단보도 정보를 볼 수 있어요'}
+      </figcaption>
       {status === 'default' && <figcaption className="mt-1 text-center text-xs text-sub">위치 권한 없이 동덕여대 주변을 보고 있어요</figcaption>}
     </figure>
   )

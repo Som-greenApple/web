@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import AppleIcon from '../components/AppleIcon'
 import LocationDeniedModal from '../components/LocationDeniedModal'
 import MobileFrame from '../components/MobileFrame'
+import { mergeCrosswalks } from '../features/map/nearbyCrosswalks'
 import { nearbyCrosswalks } from '../data/crosswalks'
 import type { NearbyCrosswalk } from '../types/crosswalk'
 
@@ -49,16 +50,22 @@ function MainPage() {
 
   const {
     setSelectedCrosswalkId,
+    discoveredCrosswalks,
   } = useAppContext()
 
   const locationDenied =
     searchParams.get('location') === 'denied' ||
     ['denied', 'unavailable', 'timeout', 'unsupported'].includes(status)
 
+  const allCrosswalks = useMemo(() => mergeCrosswalks(nearbyCrosswalks, discoveredCrosswalks), [discoveredCrosswalks])
+
   const sortedCrosswalks = useMemo(
-    () => sortCrosswalksByDistance(nearbyCrosswalks, position),
-    [position]
+    () => sortCrosswalksByDistance(allCrosswalks, position),
+    [allCrosswalks, position]
   )
+
+  const mapCrosswalks = useMemo(() => sortedCrosswalks.slice(0, 5), [sortedCrosswalks])
+  const listCrosswalks = useMemo(() => sortedCrosswalks.slice(0, 3), [sortedCrosswalks])
 
   useEffect(() => {
     if (
@@ -108,7 +115,7 @@ function MainPage() {
 
         <div className="mt-3">
           <Suspense fallback={<div role="status" className="flex h-[370px] w-[319px] items-center justify-center rounded-[20px] border-[3px] border-ink">지도를 불러오고 있어요</div>}>
-            <CrosswalkMap onSelectCrosswalk={handleSelectCrosswalk} />
+            <CrosswalkMap crosswalks={mapCrosswalks} onSelectCrosswalk={handleSelectCrosswalk} />
           </Suspense>
         </div>
 
@@ -126,7 +133,7 @@ function MainPage() {
         </h2>
 
         <ul className="mt-2">
-          {sortedCrosswalks.map((crosswalk) => (
+          {listCrosswalks.map((crosswalk) => (
             <li
               key={crosswalk.id}
               className="border-ink [&+&]:border-t-2"

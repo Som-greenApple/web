@@ -11,6 +11,8 @@ import StatBox from '../components/StatBox'
 import StrategyCard from '../components/StrategyCard'
 import StrategyIcon from '../components/StrategyIcon'
 import WalkProgress from '../components/WalkProgress'
+import { loadCrosswalkById } from '../features/map/nearbyCrosswalks'
+import type { NearbyCrosswalk } from '../types/crosswalk'
 import { nearbyCrosswalks } from '../data/crosswalks'
 import { useAppContext } from '../context/useAppContext'
 import {
@@ -99,7 +101,7 @@ function CrosswalkGuide({ name, scenario, onCountdownEnd }: CrosswalkGuideProps)
  * A3 · B1~B5 · C2~C5 걷기 안내.
  * 목업 미리보기: ?state=GO_FASTER (안내 상태), ?status=loading|delayed|offline (데이터 상태), ?demo=1 (데모 패널)
  */
-function LegacyCrosswalkPage() {
+function LegacyCrosswalkPage({ crosswalk }: { crosswalk?: NearbyCrosswalk }) {
   const navigate = useNavigate()
   const { id = '' } = useParams()
   const [searchParams] = useSearchParams()
@@ -107,7 +109,6 @@ function LegacyCrosswalkPage() {
   const statusParam = searchParams.get('status')
   const { setSelectedCrosswalkId } = useAppContext()
 
-  const crosswalk = nearbyCrosswalks.find((item) => item.id === id)
   const selectedId = crosswalk?.id ?? null
 
   useEffect(() => {
@@ -206,9 +207,30 @@ function LegacyCrosswalkPage() {
 }
 
 export default function CrosswalkPage() {
-  const { id } = useParams()
+  const { id = '' } = useParams()
   const [params] = useSearchParams()
-  const crosswalk = nearbyCrosswalks.find((item) => item.id === id)
+  const { discoveredCrosswalks } = useAppContext()
+  const [remote, setRemote] = useState<NearbyCrosswalk | null>(null)
+  const [failedId, setFailedId] = useState<string | null>(null)
+  const [detailAttempt, setDetailAttempt] = useState(0)
+  const known = nearbyCrosswalks.find(item => item.id === id) ?? discoveredCrosswalks.find(item => item.id === id)
+  const crosswalk = known ?? (remote?.id === id ? remote : undefined)
+  useEffect(() => {
+    if (crosswalk || !/^osm-(node|way)-\d+$/.test(id)) return
+    const controller = new AbortController()
+    loadCrosswalkById(id, controller.signal).then(item => {
+      if (controller.signal.aborted) return
+      if (item) setRemote(item)
+      else setFailedId(id)
+    }).catch(() => { if (!controller.signal.aborted) setFailedId(id) })
+    return () => controller.abort()
+  }, [id, crosswalk, detailAttempt])
+  if (!crosswalk && failedId === id) {
+    return <MobileFrame><div className="m-auto flex flex-col items-center gap-4 p-6 text-center"><p role="alert">횡단보도 정보를 불러오지 못했어요</p><button type="button" className="rounded-full border-2 border-ink px-4 py-2" onClick={() => { setFailedId(null); setDetailAttempt(value => value + 1) }}>다시 시도</button></div></MobileFrame>
+  }
+  if (!crosswalk && /^osm-(node|way)-\d+$/.test(id) && failedId !== id) {
+    return <MobileFrame><p role="status" className="m-auto p-6 text-center">횡단보도 정보를 불러오고 있어요</p></MobileFrame>
+  }
   if (params.get('demo') === '1' && crosswalk) return <DemoCrosswalkPage crosswalk={crosswalk} />
-  return <LegacyCrosswalkPage key={id} />
+  return <LegacyCrosswalkPage key={id} crosswalk={crosswalk} />
 }
